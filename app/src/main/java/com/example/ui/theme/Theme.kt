@@ -26,7 +26,12 @@ private val FocusTubeColorScheme = darkColorScheme(
     onSurface = DarkOnSurface,
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = DarkOnSurfaceVariant,
-    outline = DarkOutline
+    outline = DarkOutline,
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    surfaceContainer = SurfaceContainer,
+    surfaceTint = DarkPrimary
 )
 
 @Composable

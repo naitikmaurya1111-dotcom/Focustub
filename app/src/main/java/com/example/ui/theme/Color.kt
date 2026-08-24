@@ -13,9 +13,19 @@ val SlateMutedBorder = Color(0xFF1E293B)
 // Accents
 val FocusIndigo = Color(0xFF6366F1)
 val FocusIndigoLight = Color(0xFF818CF8)
+val FocusIndigoDark = Color(0xFF4F46E5)
 val FocusAmber = Color(0xFFF59E0B)
 val FocusAmberLight = Color(0xFFFBBF24)
 val FocusEmerald = Color(0xFF10B981)
+
+// Premium Rose Error
+val FocusRose = Color(0xFFF43F5E)
+val FocusRoseLight = Color(0xFFFB7185)
+
+// Surface Container Hierarchy
+val SurfaceContainer = Color(0xFF131B2E)
+val SurfaceContainerHigh = Color(0xFF172033)
+val SurfaceContainerHighest = Color(0xFF1C2640)
 
 // Typography & Content
 val TextPrimary = Color(0xFFF8FAFC)
@@ -41,3 +51,7 @@ val DarkOnSurface = TextPrimary
 val DarkSurfaceVariant = SlateCard
 val DarkOnSurfaceVariant = TextSecondary
 val DarkOutline = SlateBorder
+
+val DarkError = FocusRose
+val DarkOnError = Color.White
+val DarkErrorContainer = Color(0xFF4C0519)

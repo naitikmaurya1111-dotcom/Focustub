@@ -6,16 +6,18 @@ import android.content.res.Configuration
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -49,6 +51,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.ScreenRotation
@@ -87,6 +90,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -154,6 +158,7 @@ fun WatchPlayerScreen(
     val isTablet = configuration.screenWidthDp >= 600
 
     val playerController = remember { YouTubePlayerController() }
+    var isVideoPlaying by remember { mutableStateOf(true) }
     var currentPlaybackSec by remember { mutableIntStateOf(lecture.progressSeconds) }
     var totalDurationSec by remember { mutableIntStateOf(lecture.totalSeconds) }
     var selectedTab by remember { mutableStateOf(StudyStudioTab.NOTES) }
@@ -165,17 +170,19 @@ fun WatchPlayerScreen(
 
     // Double tap feedback
     var doubleTapFeedback by remember { mutableStateOf<String?>(null) }
+    var doubleTapSide by remember { mutableStateOf(0) } // -1 for left, 1 for right
     LaunchedEffect(doubleTapFeedback) {
         if (doubleTapFeedback != null) {
             delay(700)
             doubleTapFeedback = null
+            doubleTapSide = 0
         }
     }
 
-    // Auto-hide controls in fullscreen after 3.5s
+    // Auto-hide controls in fullscreen after 4s
     LaunchedEffect(showControlsInFocusMode) {
         if (showControlsInFocusMode) {
-            delay(3500)
+            delay(4000)
             showControlsInFocusMode = false
         }
     }
@@ -220,13 +227,14 @@ fun WatchPlayerScreen(
     if (showSettingsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSettingsSheet = false },
-            containerColor = Color(0xFF0F172A),
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            containerColor = ObsidianBg,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -234,18 +242,21 @@ fun WatchPlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Playback & Stream Settings",
-                        style = MaterialTheme.typography.titleMedium.copy(
+                        text = "Playback Settings",
+                        style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                     )
-                    IconButton(onClick = { showSettingsSheet = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                    IconButton(
+                        onClick = { showSettingsSheet = false },
+                        modifier = Modifier.background(SlateCard, CircleShape)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextPrimary)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Playback Speed
                 Text(
@@ -253,15 +264,15 @@ fun WatchPlayerScreen(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = FocusAmber,
-                        letterSpacing = 1.sp
+                        letterSpacing = 1.2.sp
                     )
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
                         val isSelected = playbackSpeed == speed
@@ -271,7 +282,13 @@ fun WatchPlayerScreen(
                                 onSpeedChanged(speed)
                                 playerController.setPlaybackSpeed?.invoke(speed)
                             },
-                            label = { Text("${speed}x", fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            label = { 
+                                Text(
+                                    "${speed}x", 
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp
+                                ) 
+                            },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = FocusIndigo,
                                 selectedLabelColor = Color.White,
@@ -281,14 +298,16 @@ fun WatchPlayerScreen(
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = isSelected,
-                                borderColor = if (isSelected) FocusIndigo else SlateBorder
+                                borderColor = if (isSelected) FocusIndigo else SlateBorder,
+                                borderWidth = if (isSelected) 2.dp else 1.dp
                             ),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Video Quality
                 Text(
@@ -296,22 +315,22 @@ fun WatchPlayerScreen(
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         color = FocusAmber,
-                        letterSpacing = 1.sp
+                        letterSpacing = 1.2.sp
                     )
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     listOf(
                         "auto" to "Auto",
-                        "hd1080" to "1080p Full HD",
+                        "hd1080" to "1080p FHD",
                         "hd720" to "720p HD",
                         "large" to "480p SD",
-                        "medium" to "360p Saver"
+                        "medium" to "360p"
                     ).forEach { (code, label) ->
                         val isSelected = currentQuality == code
                         FilterChip(
@@ -320,7 +339,13 @@ fun WatchPlayerScreen(
                                 currentQuality = code
                                 playerController.setPlaybackQuality?.invoke(code)
                             },
-                            label = { Text(label, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
+                            label = { 
+                                Text(
+                                    label, 
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp
+                                ) 
+                            },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = FocusIndigo,
                                 selectedLabelColor = Color.White,
@@ -330,19 +355,21 @@ fun WatchPlayerScreen(
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
                                 selected = isSelected,
-                                borderColor = if (isSelected) FocusIndigo else SlateBorder
+                                borderColor = if (isSelected) FocusIndigo else SlateBorder,
+                                borderWidth = if (isSelected) 2.dp else 1.dp
                             ),
-                            shape = RoundedCornerShape(8.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.height(40.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
 
-    // FULLSCREEN CINEMATIC MODE (100% Edge-to-Edge, Speed & Quality controls, Scrubber, Double-Tap)
+    // FULLSCREEN CINEMATIC MODE (100% Edge-to-Edge, Play/Pause Stop button, Speed & Quality, Scrubber)
     if (isFocusMode) {
         Box(
             modifier = modifier
@@ -362,6 +389,9 @@ fun WatchPlayerScreen(
                     totalDurationSec = tot
                     onProgressUpdate(cur, tot)
                 },
+                onPlayStateChanged = { isPlaying ->
+                    isVideoPlaying = isPlaying
+                },
                 modifier = Modifier.fillMaxSize()
             )
 
@@ -377,10 +407,12 @@ fun WatchPlayerScreen(
                             onDoubleTap = { offset ->
                                 if (offset.x < size.width / 2) {
                                     playerController.seekRelative?.invoke(-10)
-                                    doubleTapFeedback = "⏪ -10s"
+                                    doubleTapFeedback = "-10s"
+                                    doubleTapSide = -1
                                 } else {
                                     playerController.seekRelative?.invoke(10)
-                                    doubleTapFeedback = "⏩ +10s"
+                                    doubleTapFeedback = "+10s"
+                                    doubleTapSide = 1
                                 }
                                 showControlsInFocusMode = true
                             }
@@ -391,25 +423,39 @@ fun WatchPlayerScreen(
             // Double Tap Visual Pill Animation
             AnimatedVisibility(
                 visible = doubleTapFeedback != null,
-                enter = scaleIn() + fadeIn(),
-                exit = scaleOut() + fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
+                enter = fadeIn(tween(150)),
+                exit = fadeOut(tween(300)),
+                modifier = Modifier.align(if (doubleTapSide == -1) Alignment.CenterStart else Alignment.CenterEnd)
             ) {
                 doubleTapFeedback?.let { feedback ->
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(30.dp))
-                            .background(Color(0xEE090D16))
-                            .border(1.dp, FocusIndigo, RoundedCornerShape(30.dp))
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                            .fillMaxHeight()
+                            .width(180.dp)
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = if (doubleTapSide == -1) listOf(Color(0x99000000), Color.Transparent)
+                                    else listOf(Color.Transparent, Color(0x99000000))
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = feedback,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = if (doubleTapSide == -1) Icons.Default.Replay10 else Icons.Default.Forward10,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(36.dp)
                             )
-                        )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = feedback,
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -427,14 +473,15 @@ fun WatchPlayerScreen(
                         .background(
                             Brush.verticalGradient(
                                 listOf(
-                                    Color(0xAA000000),
+                                    Color(0xCC000000),
+                                    Color(0x33000000),
                                     Color.Transparent,
-                                    Color.Transparent,
-                                    Color(0xAA000000)
+                                    Color(0x33000000),
+                                    Color(0xDD000000)
                                 )
                             )
                         )
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .padding(horizontal = 24.dp, vertical = 20.dp)
                 ) {
                     // Top Bar: Exit Fullscreen Pill + Lecture Title + Study Timer + Settings + Rotate
                     Row(
@@ -445,30 +492,37 @@ fun WatchPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Prominent 1-Tap Exit Fullscreen Button
+                        val exitInteractionSource = remember { MutableInteractionSource() }
+                        val isExitPressed by exitInteractionSource.collectIsPressedAsState()
+                        val exitScale by animateFloatAsState(if (isExitPressed) 0.95f else 1f)
+                        
                         Card(
                             onClick = onToggleFocusMode,
-                            colors = CardDefaults.cardColors(containerColor = Color(0xDD1E293B)),
-                            shape = RoundedCornerShape(20.dp),
-                            border = BorderStroke(1.dp, FocusIndigo),
-                            modifier = Modifier.testTag("exit_focus_mode_button")
+                            colors = CardDefaults.cardColors(containerColor = Color(0x55000000)),
+                            shape = RoundedCornerShape(24.dp),
+                            border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                            modifier = Modifier
+                                .testTag("exit_focus_mode_button")
+                                .scale(exitScale),
+                            interactionSource = exitInteractionSource
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.FullscreenExit,
                                     contentDescription = "Exit Fullscreen",
                                     tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                                 Text(
-                                    text = "Exit Fullscreen",
-                                    style = MaterialTheme.typography.labelSmall.copy(
+                                    text = "Exit",
+                                    style = MaterialTheme.typography.labelMedium.copy(
                                         color = Color.White,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 12.sp
+                                        fontSize = 14.sp
                                     )
                                 )
                             }
@@ -477,43 +531,44 @@ fun WatchPlayerScreen(
                         // Lecture Title in Header
                         Text(
                             text = lecture.title,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                letterSpacing = 0.5.sp
                             ),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(horizontal = 16.dp)
+                                .padding(horizontal = 24.dp)
                         )
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // Active Focus Timer Pill
                             if (timerState.isRunning) {
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xDD090D16), RoundedCornerShape(10.dp))
-                                        .border(1.dp, Color(0x44F59E0B), RoundedCornerShape(10.dp))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .background(Color(0x55000000), RoundedCornerShape(12.dp))
+                                        .border(1.dp, FocusAmber, RoundedCornerShape(12.dp))
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Timer,
                                             contentDescription = null,
                                             tint = FocusAmber,
-                                            modifier = Modifier.size(14.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                         Text(
                                             text = timerState.formattedTime,
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                color = Color.White,
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                color = FocusAmber,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         )
@@ -525,14 +580,15 @@ fun WatchPlayerScreen(
                             IconButton(
                                 onClick = { showSettingsSheet = true },
                                 modifier = Modifier
-                                    .background(Color(0xDD1E293B), CircleShape)
-                                    .size(38.dp)
+                                    .background(Color(0x55000000), CircleShape)
+                                    .size(44.dp)
+                                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Tune,
                                     contentDescription = "Speed and Quality",
                                     tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
 
@@ -546,17 +602,47 @@ fun WatchPlayerScreen(
                                     }
                                 },
                                 modifier = Modifier
-                                    .background(Color(0xDD1E293B), CircleShape)
-                                    .size(38.dp)
+                                    .background(Color(0x55000000), CircleShape)
+                                    .size(44.dp)
+                                    .border(1.dp, Color(0x33FFFFFF), CircleShape)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ScreenRotation,
                                     contentDescription = "Rotate Screen",
                                     tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
+                    }
+
+                    // Large Center Play/Pause / Stop Control
+                    val playInteractionSource = remember { MutableInteractionSource() }
+                    val isPlayPressed by playInteractionSource.collectIsPressedAsState()
+                    val playScale by animateFloatAsState(if (isPlayPressed) 0.9f else 1f)
+                    
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(76.dp)
+                            .scale(playScale)
+                            .clip(CircleShape)
+                            .background(Color(0x77000000))
+                            .border(2.dp, FocusIndigo, CircleShape)
+                            .clickable(
+                                interactionSource = playInteractionSource,
+                                indication = null
+                            ) {
+                                playerController.togglePlayPause?.invoke()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isVideoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (isVideoPlaying) "Pause Video" else "Play Video",
+                            tint = Color.White,
+                            modifier = Modifier.size(42.dp)
+                        )
                     }
 
                     // Bottom Floating Scrubber HUD in Fullscreen
@@ -564,10 +650,10 @@ fun WatchPlayerScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xEE090D16))
-                            .border(1.dp, Color(0x336366F1), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0xCC0C101A))
+                            .border(1.dp, Color(0x446366F1), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
                     ) {
                         // Interactive Progress Scrubber
                         if (totalDurationSec > 0) {
@@ -585,73 +671,91 @@ fun WatchPlayerScreen(
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(24.dp)
+                                    .height(28.dp)
                             )
                         }
 
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Quick 10s Rewind & Forward + Time
+                            // Quick 10s Rewind + Play/Pause Stop Button + Forward 10s + Time
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 IconButton(
                                     onClick = { playerController.seekRelative?.invoke(-10) },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Replay10,
                                         contentDescription = "Rewind 10s",
                                         tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+
+                                // In-Bar Play / Pause Stop Button
+                                IconButton(
+                                    onClick = { playerController.togglePlayPause?.invoke() },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(Color(0x446366F1), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isVideoPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                        contentDescription = if (isVideoPlaying) "Pause Video" else "Play Video",
+                                        tint = FocusIndigo,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
+
                                 IconButton(
                                     onClick = { playerController.seekRelative?.invoke(10) },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Forward10,
                                         contentDescription = "Forward 10s",
                                         tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
 
                                 Text(
                                     text = "${ChapterParser.formatSecondsToDisplay(currentPlaybackSec)} / ${ChapterParser.formatSecondsToDisplay(totalDurationSec)}",
-                                    style = MaterialTheme.typography.labelSmall.copy(
+                                    style = MaterialTheme.typography.labelMedium.copy(
                                         color = TextSecondary,
                                         fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
                                     ),
-                                    modifier = Modifier.padding(start = 8.dp)
+                                    modifier = Modifier.padding(start = 12.dp)
                                 )
                             }
 
                             // Speed & Quality Quick Pills
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 // Quality Pill
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color(0xFF1E293B))
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(SlateCard)
                                         .clickable { showSettingsSheet = true }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .border(1.dp, SlateBorder, RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Text(
                                         text = if (currentQuality == "auto") "Auto" else currentQuality.uppercase(),
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = MaterialTheme.typography.labelMedium.copy(
                                             color = FocusAmber,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp
+                                            fontSize = 12.sp
                                         )
                                     )
                                 }
@@ -659,17 +763,17 @@ fun WatchPlayerScreen(
                                 // Speed Pill
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .clip(RoundedCornerShape(8.dp))
                                         .background(FocusIndigo)
                                         .clickable { showSettingsSheet = true }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Text(
                                         text = "${playbackSpeed}x",
-                                        style = MaterialTheme.typography.labelSmall.copy(
+                                        style = MaterialTheme.typography.labelMedium.copy(
                                             color = Color.White,
                                             fontWeight = FontWeight.Bold,
-                                            fontSize = 11.sp
+                                            fontSize = 12.sp
                                         )
                                     )
                                 }
@@ -702,7 +806,7 @@ fun WatchPlayerScreen(
                         .weight(1.15f)
                         .fillMaxHeight()
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp)
+                        .padding(20.dp)
                 ) {
                     StudioPlayerHeader(
                         lecture = lecture,
@@ -712,16 +816,16 @@ fun WatchPlayerScreen(
                         onOpenSettings = { showSettingsSheet = true }
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // 16:9 Video Frame
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .background(Color.Black)
-                            .border(1.dp, Color(0x446366F1), RoundedCornerShape(16.dp))
+                            .border(2.dp, Color(0x336366F1), RoundedCornerShape(20.dp))
                     ) {
                         YouTubePlayerView(
                             videoId = lecture.videoId,
@@ -734,19 +838,24 @@ fun WatchPlayerScreen(
                                 totalDurationSec = tot
                                 onProgressUpdate(cur, tot)
                             },
+                            onPlayStateChanged = { isPlaying ->
+                                isVideoPlaying = isPlaying
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Quick Study Action Bar
+                    // Quick Study Action Bar with Play/Pause
                     QuickStudyControlsBar(
                         currentSpeed = playbackSpeed,
                         currentQuality = currentQuality,
+                        isPlaying = isVideoPlaying,
                         isLoopActive = isLoopActive,
                         currentSec = currentPlaybackSec,
                         totalSec = totalDurationSec,
+                        onTogglePlayPause = { playerController.togglePlayPause?.invoke() },
                         onRewind10 = { playerController.seekRelative?.invoke(-10) },
                         onForward10 = { playerController.seekRelative?.invoke(10) },
                         onOpenSettings = { showSettingsSheet = true },
@@ -770,7 +879,7 @@ fun WatchPlayerScreen(
                         }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Lecture Info Box
                     LectureMetadataBox(lecture = lecture)
@@ -782,7 +891,7 @@ fun WatchPlayerScreen(
                         .weight(0.85f)
                         .fillMaxHeight()
                         .background(Color(0xFF0C101A))
-                        .padding(16.dp)
+                        .padding(20.dp)
                 ) {
                     StudyStudioTabsBar(
                         selectedTab = selectedTab,
@@ -790,7 +899,7 @@ fun WatchPlayerScreen(
                         onTabSelected = { selectedTab = it }
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     Box(
                         modifier = Modifier
@@ -842,8 +951,8 @@ fun WatchPlayerScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 StudioPlayerHeader(
                     lecture = lecture,
@@ -858,9 +967,9 @@ fun WatchPlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(20.dp))
                         .background(Color.Black)
-                        .border(1.dp, Color(0x446366F1), RoundedCornerShape(16.dp))
+                        .border(2.dp, Color(0x336366F1), RoundedCornerShape(20.dp))
                 ) {
                     YouTubePlayerView(
                         videoId = lecture.videoId,
@@ -873,17 +982,22 @@ fun WatchPlayerScreen(
                             totalDurationSec = tot
                             onProgressUpdate(cur, tot)
                         },
+                        onPlayStateChanged = { isPlaying ->
+                            isVideoPlaying = isPlaying
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
 
-                // Quick Study Controls Toolbar
+                // Quick Study Controls Toolbar with Play/Pause
                 QuickStudyControlsBar(
                     currentSpeed = playbackSpeed,
                     currentQuality = currentQuality,
+                    isPlaying = isVideoPlaying,
                     isLoopActive = isLoopActive,
                     currentSec = currentPlaybackSec,
                     totalSec = totalDurationSec,
+                    onTogglePlayPause = { playerController.togglePlayPause?.invoke() },
                     onRewind10 = { playerController.seekRelative?.invoke(-10) },
                     onForward10 = { playerController.seekRelative?.invoke(10) },
                     onOpenSettings = { showSettingsSheet = true },
@@ -951,7 +1065,7 @@ fun WatchPlayerScreen(
                 // Lecture Information Card
                 LectureMetadataBox(lecture = lecture)
 
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -972,38 +1086,40 @@ private fun StudioPlayerHeader(
     ) {
         IconButton(
             onClick = onBack,
-            modifier = Modifier.testTag("player_back_button")
+            modifier = Modifier
+                .testTag("player_back_button")
+                .background(SlateCard, CircleShape)
+                .size(40.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back to list",
-                tint = TextPrimary
+                tint = TextPrimary,
+                modifier = Modifier.size(20.dp)
             )
         }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Settings button
-            IconButton(onClick = onOpenSettings) {
-                Icon(
-                    imageVector = Icons.Default.Tune,
-                    contentDescription = "Speed and Quality",
-                    tint = TextSecondary
-                )
-            }
-
             // Fullscreen Focus Mode Button
             Card(
                 onClick = onToggleFocusMode,
-                colors = CardDefaults.cardColors(containerColor = Color(0x336366F1)),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
                 shape = RoundedCornerShape(20.dp),
                 border = BorderStroke(1.dp, FocusIndigo),
-                modifier = Modifier.testTag("enter_focus_mode_button")
+                modifier = Modifier
+                    .testTag("enter_focus_mode_button")
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(Color(0x336366F1), Color(0x116366F1))
+                        ),
+                        RoundedCornerShape(20.dp)
+                    )
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
@@ -1011,11 +1127,11 @@ private fun StudioPlayerHeader(
                         imageVector = Icons.Default.CenterFocusStrong,
                         contentDescription = "Focus Mode",
                         tint = FocusIndigo,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Fullscreen Studio",
-                        style = MaterialTheme.typography.labelSmall.copy(
+                        text = "Focus Mode",
+                        style = MaterialTheme.typography.labelMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = FocusIndigo
                         )
@@ -1024,14 +1140,39 @@ private fun StudioPlayerHeader(
             }
 
             // Save / Bookmark Button
+            val saveInteractionSource = remember { MutableInteractionSource() }
+            val isSavePressed by saveInteractionSource.collectIsPressedAsState()
+            val saveScale by animateFloatAsState(if (isSavePressed) 0.8f else 1f)
+
             IconButton(
                 onClick = onToggleSave,
-                modifier = Modifier.testTag("player_save_button")
+                interactionSource = saveInteractionSource,
+                modifier = Modifier
+                    .testTag("player_save_button")
+                    .background(SlateCard, CircleShape)
+                    .size(40.dp)
+                    .scale(saveScale)
             ) {
                 Icon(
                     imageVector = if (lecture.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                     contentDescription = "Save lecture",
-                    tint = if (lecture.isSaved) FocusAmber else TextSecondary
+                    tint = if (lecture.isSaved) FocusAmber else TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Settings button
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier
+                    .background(SlateCard, CircleShape)
+                    .size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = "Speed and Quality",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -1042,9 +1183,11 @@ private fun StudioPlayerHeader(
 private fun QuickStudyControlsBar(
     currentSpeed: Float,
     currentQuality: String,
+    isPlaying: Boolean,
     isLoopActive: Boolean,
     currentSec: Int,
     totalSec: Int,
+    onTogglePlayPause: () -> Unit,
     onRewind10: () -> Unit,
     onForward10: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -1056,31 +1199,48 @@ private fun QuickStudyControlsBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .background(SlateCard)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+            .border(1.dp, SlateBorder, RoundedCornerShape(16.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Rewind 10s & Forward 10s
+        // Rewind 10s + Play/Pause Stop + Forward 10s
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             IconButton(onClick = onRewind10, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.Replay10,
                     contentDescription = "Rewind 10 seconds",
                     tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
+
+            IconButton(
+                onClick = onTogglePlayPause,
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(Color(0x336366F1), CircleShape)
+                    .border(1.dp, FocusIndigo, CircleShape)
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = FocusIndigo,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
             IconButton(onClick = onForward10, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.Forward10,
                     contentDescription = "Forward 10 seconds",
                     tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -1089,23 +1249,23 @@ private fun QuickStudyControlsBar(
         Card(
             onClick = onAddTimestampNote,
             colors = CardDefaults.cardColors(containerColor = Color(0x22F59E0B)),
-            shape = RoundedCornerShape(8.dp),
-            border = BorderStroke(1.dp, FocusAmber)
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, Color(0x44F59E0B))
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.EditNote,
                     contentDescription = null,
                     tint = FocusAmber,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = "+ $timeLabel",
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    style = MaterialTheme.typography.labelMedium.copy(
                         color = FocusAmber,
                         fontWeight = FontWeight.Bold
                     )
@@ -1119,51 +1279,28 @@ private fun QuickStudyControlsBar(
             colors = CardDefaults.cardColors(
                 containerColor = if (isLoopActive) Color(0x336366F1) else Color(0xFF131B2E)
             ),
-            shape = RoundedCornerShape(8.dp),
+            shape = RoundedCornerShape(12.dp),
             border = BorderStroke(
                 1.dp,
                 if (isLoopActive) FocusIndigo else SlateBorder
             )
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Loop,
                     contentDescription = null,
                     tint = if (isLoopActive) FocusIndigo else TextSecondary,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = if (isLoopActive) "Loop Active" else "A/B Loop",
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    style = MaterialTheme.typography.labelMedium.copy(
                         color = if (isLoopActive) FocusIndigo else TextSecondary,
                         fontWeight = FontWeight.Medium
-                    )
-                )
-            }
-        }
-
-        // Speed & Quality Settings pill
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(FocusIndigo)
-                    .clickable { onOpenSettings() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-            ) {
-                Text(
-                    text = "${currentSpeed}x",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp
                     )
                 )
             }
@@ -1192,9 +1329,11 @@ private fun StudyStudioTabsBar(
             val index = tabs.indexOfFirst { it.first == selectedTab }
             if (index in tabPositions.indices) {
                 TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[index]),
+                    modifier = Modifier
+                        .tabIndicatorOffset(tabPositions[index])
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)),
                     color = FocusIndigo,
-                    height = 2.dp
+                    height = 3.dp
                 )
             }
         },
@@ -1215,7 +1354,7 @@ private fun StudyStudioTabsBar(
                 text = {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.labelMedium.copy(
+                        style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) FocusIndigo else TextSecondary
                         )
@@ -1236,52 +1375,52 @@ private fun ChaptersListView(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, SlateBorder)
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.MenuBook,
                     contentDescription = null,
                     tint = FocusIndigo,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
                 Text(
                     text = "Lecture Topics & Timestamps",
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (chapters.isEmpty()) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp),
+                        .padding(vertical = 32.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "No topic timestamps in this lecture description.",
-                        style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "You can add your own custom timestamps in the Notes tab!",
-                        style = MaterialTheme.typography.labelSmall.copy(color = FocusIndigo)
+                        style = MaterialTheme.typography.labelMedium.copy(color = FocusIndigo, fontWeight = FontWeight.Bold)
                     )
                 }
             } else {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     chapters.forEach { chapter ->
                         val isCurrent = currentSeconds >= chapter.startSeconds &&
@@ -1290,16 +1429,21 @@ private fun ChaptersListView(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(if (isCurrent) Color(0x336366F1) else Color(0xFF131B2E))
+                                .border(
+                                    1.dp,
+                                    if (isCurrent) Color(0x556366F1) else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
                                 .clickable { onChapterClick(chapter.startSeconds) }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = chapter.title,
-                                style = MaterialTheme.typography.bodySmall.copy(
+                                style = MaterialTheme.typography.bodyMedium.copy(
                                     color = if (isCurrent) Color.White else TextPrimary,
                                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
                                 ),
@@ -1310,17 +1454,18 @@ private fun ChaptersListView(
 
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
+                                    .padding(start = 12.dp)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(if (isCurrent) FocusIndigo else Color(0xFF1E293B))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = chapter.displayTimestamp,
-                                    style = MaterialTheme.typography.labelSmall.copy(
+                                    style = MaterialTheme.typography.labelMedium.copy(
                                         color = if (isCurrent) Color.White else FocusAmber,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp
+                                        fontSize = 13.sp
                                     )
                                 )
                             }
@@ -1341,80 +1486,117 @@ private fun LectureSyllabusInfoView(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         border = BorderStroke(1.dp, SlateBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = null,
                     tint = FocusIndigo,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(22.dp)
                 )
                 Text(
                     text = "Course & Lecture Details",
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Text(
                 text = lecture.title,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
                     color = TextPrimary
                 )
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Instructor / Channel: ${lecture.channelTitle}",
-                style = MaterialTheme.typography.bodySmall.copy(color = FocusAmber)
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Duration: ${lecture.duration}",
-                style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
-            )
-
-            if (lecture.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = FocusAmber,
+                    modifier = Modifier.size(16.dp)
+                )
                 Text(
-                    text = lecture.description,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = TextSecondary,
-                        lineHeight = 17.sp
+                    text = lecture.channelTitle,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        color = FocusAmber,
+                        fontWeight = FontWeight.Medium
                     )
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Timer,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = "Duration: ${lecture.duration}",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
+                )
+            }
+
+            if (lecture.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF131B2E))
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = lecture.description,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = TextSecondary,
+                            lineHeight = 22.sp
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
 
             OutlinedButton(
                 onClick = onOpenInBrowser,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp, SlateBorder),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.OpenInNew,
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(18.dp),
                     tint = TextSecondary
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Open Video in External Browser", color = TextSecondary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Open Video in External Browser", 
+                    color = TextSecondary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
@@ -1427,40 +1609,62 @@ private fun LectureMetadataBox(lecture: Lecture) {
             .fillMaxWidth()
             .testTag("lecture_metadata_card"),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(1.dp, SlateBorder)
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = lecture.title,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(FocusIndigo),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = lecture.channelTitle,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = FocusAmber,
-                        fontWeight = FontWeight.Medium
+                    text = lecture.channelTitle.firstOrNull()?.uppercase() ?: "?",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
                     )
                 )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "•",
-                    style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
+                    text = lecture.title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    ),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = lecture.duration,
-                    style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = lecture.channelTitle,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = FocusAmber,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+                    Text(
+                        text = "•",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted)
+                    )
+                    Text(
+                        text = lecture.duration,
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
+                    )
+                }
             }
         }
     }

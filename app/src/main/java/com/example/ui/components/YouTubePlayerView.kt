@@ -111,6 +111,7 @@ fun YouTubePlayerView(
     playbackQuality: String = "auto",
     controller: YouTubePlayerController? = null,
     onProgressUpdate: (current: Int, total: Int) -> Unit,
+    onPlayStateChanged: ((isPlaying: Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -163,18 +164,26 @@ fun YouTubePlayerView(
                     "if (window.player && player.playVideo) { player.playVideo(); }",
                     null
                 )
+                isPlaying = true
+                onPlayStateChanged?.invoke(true)
             }
             pause = {
                 webViewRef?.evaluateJavascript(
                     "if (window.player && player.pauseVideo) { player.pauseVideo(); }",
                     null
                 )
+                isPlaying = false
+                onPlayStateChanged?.invoke(false)
             }
             togglePlayPause = {
                 if (isPlaying) {
-                    webViewRef?.evaluateJavascript("if(window.player && player.pauseVideo){ player.pauseVideo(); }", null)
+                    webViewRef?.evaluateJavascript("if (window.player && player.pauseVideo) { player.pauseVideo(); }", null)
+                    isPlaying = false
+                    onPlayStateChanged?.invoke(false)
                 } else {
-                    webViewRef?.evaluateJavascript("if(window.player && player.playVideo){ player.playVideo(); }", null)
+                    webViewRef?.evaluateJavascript("if (window.player && player.playVideo) { player.playVideo(); }", null)
+                    isPlaying = true
+                    onPlayStateChanged?.invoke(true)
                 }
             }
             setLoopRange = { start, end ->
@@ -416,7 +425,6 @@ fun YouTubePlayerView(
                             allowFileAccess = true
                             allowContentAccess = true
 
-                            // High-compatibility Chrome Mobile User-Agent
                             val originalUa = userAgentString ?: ""
                             val cleanedUa = originalUa
                                 .replace("; wv", "")
@@ -432,6 +440,7 @@ fun YouTubePlayerView(
                                 },
                                 onStateChanged = { playing ->
                                     isPlaying = playing
+                                    onPlayStateChanged?.invoke(playing)
                                 },
                                 onError = { code ->
                                     playerError = "Playback restricted by video creator (Code $code)"

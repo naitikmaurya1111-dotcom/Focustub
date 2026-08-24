@@ -194,17 +194,23 @@ class LectureRepository(
         }
     }
 
-    suspend fun recordStudySession(videoId: String, videoTitle: String, minutes: Int) {
-        if (minutes > 0) {
-            studySessionDao.insertSession(
-                StudySessionEntity(
-                    videoId = videoId,
-                    videoTitle = videoTitle,
-                    durationMinutes = minutes,
-                    timestamp = System.currentTimeMillis()
-                )
+    suspend fun updateNotes(videoId: String, notes: String) = saveNotes(videoId, notes)
+
+    suspend fun recordStudySession(videoId: String?, videoTitle: String?, minutes: Int) {
+        val durationMins = if (minutes > 0) minutes else 1
+        studySessionDao.insertSession(
+            StudySessionEntity(
+                videoId = videoId ?: "",
+                videoTitle = videoTitle ?: "Focus Study Session",
+                durationMinutes = durationMins,
+                timestamp = System.currentTimeMillis()
             )
-        }
+        )
+    }
+
+    suspend fun recordStudySession(durationSeconds: Int, videoId: String? = null, videoTitle: String? = null) {
+        val minutes = (durationSeconds / 60).coerceAtLeast(1)
+        recordStudySession(videoId = videoId, videoTitle = videoTitle, minutes = minutes)
     }
 
     suspend fun clearAllData() {

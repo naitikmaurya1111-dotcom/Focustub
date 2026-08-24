@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -12,21 +14,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.Functions
 import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SquareFoot
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -35,10 +35,13 @@ import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -49,6 +52,8 @@ import com.example.data.remote.ChapterParser
 import com.example.ui.theme.FocusAmber
 import com.example.ui.theme.FocusEmerald
 import com.example.ui.theme.FocusIndigo
+import com.example.ui.theme.FocusIndigoLight
+import com.example.ui.theme.ObsidianBg
 import com.example.ui.theme.SlateBorder
 import com.example.ui.theme.SlateCard
 import com.example.ui.theme.TextMuted
@@ -83,13 +88,25 @@ fun NotesSection(
         ChapterParser.formatSecondsToDisplay(currentPlaybackSeconds)
     }
 
+    // Pulse animation for Auto-saved badge
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse_transition")
+    val alphaAnim by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .testTag("lecture_notes_card"),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
+        border = BorderStroke(1.dp, SlateBorder)
     ) {
         Column(
             modifier = Modifier
@@ -104,14 +121,26 @@ fun NotesSection(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.EditNote,
-                        contentDescription = null,
-                        tint = FocusIndigo,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(FocusIndigo, FocusIndigoLight)
+                                )
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EditNote,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Text(
                         text = "Study Notes & Key Takeaways",
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -123,13 +152,14 @@ fun NotesSection(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.alpha(alphaAnim)
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = null,
                         tint = FocusEmerald,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Text(
                         text = "Auto-saved",
@@ -142,14 +172,14 @@ fun NotesSection(
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Quick Formatting & Timestamp Insertion Toolbar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Insert current video timestamp
@@ -168,11 +198,11 @@ fun NotesSection(
                                 imageVector = Icons.Default.Schedule,
                                 contentDescription = null,
                                 tint = FocusAmber,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
                                 text = "+ $currentFormattedTime",
-                                style = MaterialTheme.typography.labelSmall.copy(
+                                style = MaterialTheme.typography.labelMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = FocusAmber
                                 )
@@ -180,13 +210,13 @@ fun NotesSection(
                         }
                     },
                     colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = Color(0x22F59E0B)
+                        containerColor = FocusAmber.copy(alpha = 0.1f)
                     ),
                     border = SuggestionChipDefaults.suggestionChipBorder(
                         enabled = true,
-                        borderColor = FocusAmber
+                        borderColor = FocusAmber.copy(alpha = 0.5f)
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 // Key Concept Tag
@@ -197,22 +227,33 @@ fun NotesSection(
                         onNotesChanged(newNotes)
                     },
                     label = {
-                        Text(
-                            text = "💡 Concept",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Medium,
-                                color = TextPrimary
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Lightbulb,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(14.dp)
                             )
-                        )
+                            Text(
+                                text = "Concept",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            )
+                        }
                     },
                     colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = Color(0xFF131B2E)
+                        containerColor = ObsidianBg
                     ),
                     border = SuggestionChipDefaults.suggestionChipBorder(
                         enabled = true,
                         borderColor = SlateBorder
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 // Formula Tag
@@ -223,33 +264,81 @@ fun NotesSection(
                         onNotesChanged(newNotes)
                     },
                     label = {
-                        Text(
-                            text = "📐 Formula",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Medium,
-                                color = TextPrimary
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SquareFoot,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(14.dp)
                             )
-                        )
+                            Text(
+                                text = "Formula",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            )
+                        }
                     },
                     colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = Color(0xFF131B2E)
+                        containerColor = ObsidianBg
                     ),
                     border = SuggestionChipDefaults.suggestionChipBorder(
                         enabled = true,
                         borderColor = SlateBorder
                     ),
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp)
+                )
+                
+                // Important Tag
+                SuggestionChip(
+                    onClick = {
+                        val tag = "⚠️ Important: "
+                        val newNotes = if (notes.isBlank()) tag else "$notes\n$tag"
+                        onNotesChanged(newNotes)
+                    },
+                    label = {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Important",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextPrimary
+                                )
+                            )
+                        }
+                    },
+                    colors = SuggestionChipDefaults.suggestionChipColors(
+                        containerColor = ObsidianBg
+                    ),
+                    border = SuggestionChipDefaults.suggestionChipBorder(
+                        enabled = true,
+                        borderColor = SlateBorder
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
 
             // Clickable Jump-to-Timestamp Chips found in notes
             if (extractedTimestamps.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -262,28 +351,46 @@ fun NotesSection(
                     extractedTimestamps.forEach { (timeStr, seconds) ->
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0x336366F1))
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            FocusIndigo.copy(alpha = 0.2f),
+                                            FocusIndigoLight.copy(alpha = 0.2f)
+                                        )
+                                    )
+                                )
                                 .clickable { onSeekTo(seconds) }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
-                            Text(
-                                text = "▶ $timeStr",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = FocusIndigo,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 11.sp
-                                ),
-                                modifier = Modifier
-                                    .testTag("jump_timestamp_$timeStr")
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = FocusIndigoLight,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Text(
+                                    text = timeStr,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = FocusIndigoLight,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 12.sp
+                                    ),
+                                    modifier = Modifier
+                                        .testTag("jump_timestamp_$timeStr")
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Main Editor Field
             OutlinedTextField(
@@ -291,16 +398,16 @@ fun NotesSection(
                 onValueChange = onNotesChanged,
                 placeholder = {
                     Text(
-                        text = "Write your structured notes here...\nClick '+ Timestamp' above to link moments from the lecture.",
-                        style = MaterialTheme.typography.bodySmall.copy(
+                        text = "Write your detailed notes here...\n\n• Use '+ Timestamp' to link important moments.\n• Use quick tags like 'Concept' or 'Important' to organize.\n• Keep ideas crisp and clear.",
+                        style = MaterialTheme.typography.bodyMedium.copy(
                             color = TextMuted,
-                            lineHeight = 18.sp
+                            lineHeight = 22.sp
                         )
                     )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp)
+                    .height(200.dp)
                     .testTag("notes_input_field"),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = FocusIndigo,
@@ -308,11 +415,29 @@ fun NotesSection(
                     focusedTextColor = TextPrimary,
                     unfocusedTextColor = TextPrimary,
                     cursorColor = FocusIndigo,
-                    focusedContainerColor = Color(0xFF131B2E),
-                    unfocusedContainerColor = Color(0xFF131B2E)
+                    focusedContainerColor = ObsidianBg,
+                    unfocusedContainerColor = ObsidianBg
                 ),
                 shape = RoundedCornerShape(12.dp)
             )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Word count
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                val words = if (notes.isBlank()) 0 else notes.trim().split(Regex("\\s+")).size
+                val chars = notes.length
+                Text(
+                    text = "$words words | $chars chars",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = TextMuted,
+                        fontSize = 11.sp
+                    )
+                )
+            }
         }
     }
 }

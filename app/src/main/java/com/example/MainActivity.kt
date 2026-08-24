@@ -1,8 +1,8 @@
 package com.example
 
 import android.app.Activity
+import android.content.res.Configuration
 import android.os.Bundle
-import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -17,15 +17,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.Bookmarks
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
@@ -44,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -53,6 +51,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.Lecture
 import com.example.data.repository.ApiKeyStatus
+import com.example.ui.viewmodel.FocusScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.MainSearchScreen
 import com.example.ui.screens.SettingsScreen
@@ -63,7 +62,6 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.ObsidianBg
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
-import com.example.ui.viewmodel.FocusScreen
 import com.example.ui.viewmodel.FocusTubeViewModel
 
 class MainActivity : ComponentActivity() {
@@ -87,6 +85,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val searchResults by viewModel.displayedSearchResults.collectAsStateWithLifecycle()
+    val searchHistory by viewModel.searchHistory.collectAsStateWithLifecycle()
     val savedLectures by viewModel.savedLectures.collectAsStateWithLifecycle()
     val recentLectures by viewModel.recentLectures.collectAsStateWithLifecycle()
     val totalMinutesStudied by viewModel.totalMinutesStudied.collectAsStateWithLifecycle()
@@ -112,7 +111,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
     val configuration = LocalConfiguration.current
     val isExpanded = configuration.screenWidthDp >= 600
 
-    // Fullscreen Immersive Controller (Completely eliminates top bold bar and navigation bar in fullscreen)
+    // Fullscreen Immersive Controller
     DisposableEffect(isFocusMode) {
         activity?.window?.let { window ->
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
@@ -133,7 +132,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
     }
 
     if (currentScreen == FocusScreen.PLAYER && currentLecture != null) {
-        // Dedicated Lecture Player (No bottom/rail nav)
+        // Dedicated Lecture Player
         WatchPlayerScreen(
             lecture = currentLecture!!,
             isFocusMode = isFocusMode,
@@ -152,7 +151,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
             onToggleFocusMode = { viewModel.toggleFocusMode() },
             onToggleSave = { viewModel.toggleSaveLecture(currentLecture!!) },
             onSpeedChanged = { viewModel.setPlaybackSpeed(it) },
-            onProgressUpdate = { cur, tot -> viewModel.updatePlaybackProgress(cur, tot) },
+            onProgressUpdate = { cur, tot -> viewModel.updateProgress(cur, tot) },
             onNotesChanged = { viewModel.onNotesChanged(it) },
             onStartTimer = { viewModel.startStudyTimer(it) },
             onPauseTimer = { viewModel.pauseStudyTimer() },
@@ -204,7 +203,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         onClick = { viewModel.navigateTo(FocusScreen.LIBRARY) },
                         icon = {
                             Icon(
-                                imageVector = if (currentScreen == FocusScreen.LIBRARY) Icons.Filled.Bookmarks else Icons.Outlined.Bookmarks,
+                                imageVector = if (currentScreen == FocusScreen.LIBRARY) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                 contentDescription = "Library"
                             )
                         },
@@ -250,6 +249,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         searchQuery = searchQuery,
                         selectedCategory = selectedCategory,
                         searchResults = searchResults,
+                        searchHistory = searchHistory,
                         recentLectures = recentLectures,
                         savedLectures = savedLectures,
                         totalMinutesStudied = totalMinutesStudied,
@@ -266,6 +266,8 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         onCategorySelected = { viewModel.onCategorySelected(it) },
                         onClearSearch = { viewModel.clearSearch() },
                         onRetrySearch = { viewModel.retrySearch() },
+                        onDeleteSearchHistoryItem = { viewModel.deleteSearchHistoryItem(it) },
+                        onClearAllSearchHistory = { viewModel.clearAllSearchHistory() },
                         onOpenSettings = { viewModel.navigateTo(FocusScreen.SETTINGS) },
                         onLectureSelected = { viewModel.selectLectureToWatch(it) },
                         onToggleSaveLecture = { viewModel.toggleSaveLecture(it) },
@@ -290,9 +292,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                     NavigationBar(
                         containerColor = DeepSlateSurface,
                         contentColor = TextPrimary,
-                        modifier = Modifier
-                            .windowInsetsPadding(WindowInsets.navigationBars)
-                            .testTag("bottom_navigation_bar")
+                        modifier = Modifier.testTag("phone_bottom_nav_bar")
                     ) {
                         NavigationBarItem(
                             selected = currentScreen == FocusScreen.SEARCH,
@@ -311,7 +311,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                                 unselectedIconColor = TextMuted,
                                 unselectedTextColor = TextMuted
                             ),
-                            modifier = Modifier.testTag("nav_search")
+                            modifier = Modifier.testTag("bottom_nav_search")
                         )
 
                         NavigationBarItem(
@@ -319,7 +319,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                             onClick = { viewModel.navigateTo(FocusScreen.LIBRARY) },
                             icon = {
                                 Icon(
-                                    imageVector = if (currentScreen == FocusScreen.LIBRARY) Icons.Filled.Bookmarks else Icons.Outlined.Bookmarks,
+                                    imageVector = if (currentScreen == FocusScreen.LIBRARY) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                                     contentDescription = "Library"
                                 )
                             },
@@ -331,7 +331,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                                 unselectedIconColor = TextMuted,
                                 unselectedTextColor = TextMuted
                             ),
-                            modifier = Modifier.testTag("nav_library")
+                            modifier = Modifier.testTag("bottom_nav_library")
                         )
 
                         NavigationBarItem(
@@ -351,7 +351,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                                 unselectedIconColor = TextMuted,
                                 unselectedTextColor = TextMuted
                             ),
-                            modifier = Modifier.testTag("nav_settings")
+                            modifier = Modifier.testTag("bottom_nav_settings")
                         )
                     }
                 }
@@ -366,6 +366,7 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         searchQuery = searchQuery,
                         selectedCategory = selectedCategory,
                         searchResults = searchResults,
+                        searchHistory = searchHistory,
                         recentLectures = recentLectures,
                         savedLectures = savedLectures,
                         totalMinutesStudied = totalMinutesStudied,
@@ -382,6 +383,8 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         onCategorySelected = { viewModel.onCategorySelected(it) },
                         onClearSearch = { viewModel.clearSearch() },
                         onRetrySearch = { viewModel.retrySearch() },
+                        onDeleteSearchHistoryItem = { viewModel.deleteSearchHistoryItem(it) },
+                        onClearAllSearchHistory = { viewModel.clearAllSearchHistory() },
                         onOpenSettings = { viewModel.navigateTo(FocusScreen.SETTINGS) },
                         onLectureSelected = { viewModel.selectLectureToWatch(it) },
                         onToggleSaveLecture = { viewModel.toggleSaveLecture(it) },
@@ -406,6 +409,7 @@ private fun ScreenContent(
     searchQuery: String,
     selectedCategory: String,
     searchResults: List<Lecture>,
+    searchHistory: List<String>,
     recentLectures: List<Lecture>,
     savedLectures: List<Lecture>,
     totalMinutesStudied: Int,
@@ -422,6 +426,8 @@ private fun ScreenContent(
     onCategorySelected: (String) -> Unit,
     onClearSearch: () -> Unit,
     onRetrySearch: () -> Unit,
+    onDeleteSearchHistoryItem: (String) -> Unit,
+    onClearAllSearchHistory: () -> Unit,
     onOpenSettings: () -> Unit,
     onLectureSelected: (Lecture) -> Unit,
     onToggleSaveLecture: (Lecture) -> Unit,
@@ -447,7 +453,7 @@ private fun ScreenContent(
                     searchQuery = searchQuery,
                     selectedCategory = selectedCategory,
                     searchResults = searchResults,
-                    recentLectures = recentLectures,
+                    searchHistory = searchHistory,
                     isSearching = isSearching,
                     isLiveApiSearch = isLiveApiSearch,
                     searchApiErrorMessage = searchApiErrorMessage,
@@ -457,6 +463,8 @@ private fun ScreenContent(
                     onCategorySelected = onCategorySelected,
                     onClearSearch = onClearSearch,
                     onRetrySearch = onRetrySearch,
+                    onDeleteSearchHistoryItem = onDeleteSearchHistoryItem,
+                    onClearAllSearchHistory = onClearAllSearchHistory,
                     onOpenSettings = onOpenSettings,
                     onLectureSelected = onLectureSelected,
                     onToggleSaveLecture = onToggleSaveLecture

@@ -1,8 +1,12 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,23 +18,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -44,6 +54,7 @@ import com.example.data.model.Lecture
 import com.example.ui.theme.FocusAmber
 import com.example.ui.theme.FocusEmerald
 import com.example.ui.theme.FocusIndigo
+import com.example.ui.theme.FocusIndigoLight
 import com.example.ui.theme.SlateBorder
 import com.example.ui.theme.SlateCard
 import com.example.ui.theme.TextMuted
@@ -57,15 +68,21 @@ fun LectureCard(
     onToggleSave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .testTag("lecture_card_${lecture.videoId}")
             .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = rememberRipple(bounded = true, color = FocusIndigo),
+                onClick = onClick
+            ),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
+        border = BorderStroke(1.dp, FocusIndigo.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -85,6 +102,19 @@ fun LectureCard(
                     contentDescription = "Thumbnail for ${lecture.title}",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.matchParentSize()
+                )
+
+                // Thumbnail gradient overlay
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(80.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color(0xCC000000))
+                            )
+                        )
                 )
 
                 // Category pill
@@ -134,9 +164,16 @@ fun LectureCard(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xEE10B981))
-                            .padding(horizontal = 6.dp, vertical = 3.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    colors = listOf(
+                                        FocusEmerald.copy(alpha = 0.8f),
+                                        FocusEmerald.copy(alpha = 0.6f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -163,21 +200,28 @@ fun LectureCard(
 
             // Progress bar if in progress
             if (lecture.progressPercent > 0f && !lecture.isCompleted) {
-                LinearProgressIndicator(
-                    progress = { lecture.progressPercent },
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(3.dp),
-                    color = FocusIndigo,
-                    trackColor = SlateBorder
-                )
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(SlateBorder)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(lecture.progressPercent)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Brush.horizontalGradient(listOf(FocusIndigo, FocusIndigoLight)))
+                    )
+                }
             }
 
             // Content details
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp)
+                    .padding(16.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -189,18 +233,28 @@ fun LectureCard(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = TextPrimary,
-                            lineHeight = 21.sp
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp
                         ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
 
+                    val interactionSourceBookmark = remember { MutableInteractionSource() }
+                    val isBookmarkPressed by interactionSourceBookmark.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isBookmarkPressed) 0.8f else 1f,
+                        label = "bookmark_scale"
+                    )
+
                     IconButton(
                         onClick = onToggleSave,
+                        interactionSource = interactionSourceBookmark,
                         modifier = Modifier
                             .size(36.dp)
                             .testTag("bookmark_button_${lecture.videoId}")
+                            .graphicsLayer(scaleX = scale, scaleY = scale)
                     ) {
                         Icon(
                             imageVector = if (lecture.isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
@@ -217,23 +271,42 @@ fun LectureCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = lecture.channelTitle,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = FocusAmber,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-
-                    if (lecture.notes.isNotBlank()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
                         Box(
                             modifier = Modifier
+                                .size(4.dp)
+                                .clip(CircleShape)
+                                .background(FocusIndigo)
+                        )
+                        Text(
+                            text = lecture.channelTitle,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = FocusAmber,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    if (lecture.notes.isNotBlank()) {
+                        Row(
+                            modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
-                                .background(Color(0x336366F1))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .background(FocusIndigo.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.EditNote,
+                                contentDescription = null,
+                                tint = FocusIndigo,
+                                modifier = Modifier.size(14.dp)
+                            )
                             Text(
                                 text = "Has Notes",
                                 style = MaterialTheme.typography.labelSmall.copy(
