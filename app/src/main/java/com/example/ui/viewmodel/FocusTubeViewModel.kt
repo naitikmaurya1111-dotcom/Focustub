@@ -173,17 +173,10 @@ class FocusTubeViewModel(
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
         searchJob?.cancel()
-        val trimmed = query.trim()
-        if (trimmed.isBlank()) {
+        if (query.isBlank()) {
             _searchResults.value = emptyList()
             _searchApiErrorMessage.value = null
             _isSearching.value = false
-        } else {
-            // Instant real-time debounced search as the user types
-            searchJob = viewModelScope.launch {
-                delay(300)
-                performSearch(trimmed, _selectedCategory.value, immediate = false)
-            }
         }
     }
 

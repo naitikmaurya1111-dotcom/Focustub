@@ -263,40 +263,60 @@ fun MainSearchScreen(
                             )
                         },
                         leadingIcon = {
-                            IconButton(
-                                onClick = {
-                                    if (searchQuery.isNotBlank()) {
-                                        onSearchSubmitted(searchQuery)
-                                        focusManager.clearFocus()
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = FocusIndigo,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = null,
+                                tint = if (searchQuery.isNotBlank()) FocusIndigo else TextMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
                         },
                         trailingIcon = {
-                            AnimatedVisibility(
-                                visible = searchQuery.isNotBlank(),
-                                enter = fadeIn(),
-                                exit = fadeOut()
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier.padding(end = 4.dp)
                             ) {
+                                AnimatedVisibility(
+                                    visible = searchQuery.isNotBlank(),
+                                    enter = fadeIn(),
+                                    exit = fadeOut()
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            onClearSearch()
+                                            focusManager.clearFocus()
+                                        },
+                                        modifier = Modifier.size(32.dp).testTag("clear_search_button")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Clear Search",
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
                                 IconButton(
                                     onClick = {
-                                        onClearSearch()
-                                        focusManager.clearFocus()
+                                        if (searchQuery.isNotBlank()) {
+                                            onSearchSubmitted(searchQuery)
+                                            focusManager.clearFocus()
+                                        }
                                     },
-                                    modifier = Modifier.testTag("clear_search_button")
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(
+                                            if (searchQuery.isNotBlank()) FocusIndigo else Color.Transparent,
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                        .testTag("submit_search_button")
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Clear,
-                                        contentDescription = "Clear Search",
-                                        tint = TextSecondary,
-                                        modifier = Modifier.size(18.dp)
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Submit Search",
+                                        tint = if (searchQuery.isNotBlank()) Color.White else TextMuted,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
