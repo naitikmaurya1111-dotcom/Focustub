@@ -127,11 +127,14 @@ fun YouTubePlayerView(
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
+                #player-wrapper { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
                 #player { width: 100%; height: 100%; border: none; }
             </style>
         </head>
         <body>
-            <div id="player"></div>
+            <div id="player-wrapper">
+                <div id="player"></div>
+            </div>
             <script>
                 var tag = document.createElement('script');
                 tag.src = "https://www.youtube.com/iframe_api";
@@ -154,6 +157,9 @@ fun YouTubePlayerView(
                             'modestbranding': 1,
                             'iv_load_policy': 3,
                             'fs': 1,
+                            'enablejsapi': 1,
+                            'origin': 'https://www.youtube.com',
+                            'widget_referrer': 'https://www.youtube.com',
                             'start': $startSeconds
                         },
                         events: {
@@ -184,7 +190,6 @@ fun YouTubePlayerView(
                 }
 
                 function onPlayerError(event) {
-                    // Only dispatch error for owner restriction codes (101 / 150)
                     if (event && (event.data === 101 || event.data === 150)) {
                         if (window.AndroidBridge) {
                             window.AndroidBridge.onPlayerError(event.data);

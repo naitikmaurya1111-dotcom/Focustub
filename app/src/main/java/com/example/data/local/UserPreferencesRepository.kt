@@ -15,7 +15,7 @@ class UserPreferencesRepository(context: Context) {
     }
 
     fun getOpenInYouTubeDefault(): Boolean {
-        return prefs.getBoolean(KEY_OPEN_IN_YOUTUBE_DEFAULT, true)
+        return prefs.getBoolean(KEY_OPEN_IN_YOUTUBE_DEFAULT, false)
     }
 
     fun setOpenInYouTubeDefault(enabled: Boolean) {
