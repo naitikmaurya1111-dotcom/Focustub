@@ -1,0 +1,6 @@
+{
+  "name": "FocusTube",
+  "description": "Minimal, distraction-free study video player for focused educational learning.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
