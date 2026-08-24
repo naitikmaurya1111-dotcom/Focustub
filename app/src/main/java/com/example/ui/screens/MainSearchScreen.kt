@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material3.Button
@@ -182,16 +183,19 @@ fun MainSearchScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(RoundedCornerShape(7.dp))
-                                    .background(Color.White)
-                                    .padding(3.dp),
+                                    .size(26.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(FocusIndigo, FocusIndigoLight)
+                                        )
+                                    ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.AutoAwesome,
-                                    contentDescription = "FocusTube Gemini Brand",
-                                    tint = FocusIndigo,
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "FocusTube Brand",
+                                    tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -521,22 +525,34 @@ fun MainSearchScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(110.dp)
-                                .clip(RoundedCornerShape(32.dp))
+                                .size(116.dp)
+                                .clip(RoundedCornerShape(34.dp))
                                 .background(
                                     Brush.linearGradient(
-                                        listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))
+                                        listOf(Color(0xFFFFFFFF), Color(0xFFF8FAFC))
                                     )
                                 )
-                                .border(BorderStroke(1.5.dp, Color(0x33FFFFFF)), RoundedCornerShape(32.dp)),
+                                .border(BorderStroke(2.dp, Color(0x336366F1)), RoundedCornerShape(34.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = "FocusTube Gemini Spark",
-                                tint = FocusIndigo,
-                                modifier = Modifier.size(52.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(FocusIndigo, Color(0xFF7C3AED), Color(0xFF06B6D4))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Study Video Focus",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(34.dp)
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))

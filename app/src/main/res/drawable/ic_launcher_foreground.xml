@@ -6,14 +6,29 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Gemini Radiant Multi-Point Primary Star -->
-    <path android:pathData="M54,18 C54,39 69,54 90,54 C69,54 54,69 54,90 C54,69 39,54 18,54 C39,54 54,39 54,18 Z">
+    <!-- 1. Deep Base Shadow / Under-Book Layer (Soft organic curve) -->
+    <path android:pathData="M54,80 C38,80 20,69 20,49 C20,43 27,39 33,41 C42,44 49,53 54,57 C59,53 66,44 75,41 C81,39 88,43 88,49 C88,69 70,80 54,80 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="18"
-                android:startY="18"
-                android:endX="90"
-                android:endY="90"
+                android:startX="20"
+                android:startY="40"
+                android:endX="88"
+                android:endY="80"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#20312E81" />
+                <item android:offset="1.0" android:color="#2006B6D4" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 2. Main Vibrant Open Knowledge Book Wings (Ultra-smooth rounded curves, zero sharp corners) -->
+    <path android:pathData="M54,75 C42,75 24,66 24,47 C24,40 31,36 37,38 C45,41 50,49 54,53 C58,49 63,41 71,38 C77,36 84,40 84,47 C84,66 66,75 54,75 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="24"
+                android:startY="36"
+                android:endX="84"
+                android:endY="75"
                 android:type="linear">
                 <item android:offset="0.0" android:color="#4F46E5" />
                 <item android:offset="0.35" android:color="#7C3AED" />
@@ -23,43 +38,67 @@
         </aapt:attr>
     </path>
 
-    <!-- Celestial Top-Right Sparkle -->
-    <path android:pathData="M78,16 C78,23 83,26 88,26 C83,26 78,29 78,36 C78,29 73,26 68,26 C73,26 78,23 78,16 Z">
-        <aapt:attr name="android:fillColor">
+    <!-- 3. Left Page Inner Depth Crease -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.25"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M32,45 C38,47 46,55 52,66" />
+
+    <!-- 4. Right Page Inner Depth Crease -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.25"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M76,45 C70,47 62,55 56,66" />
+
+    <!-- 5. Academic Focus Halo (Smooth Rounded Orbital Arc) -->
+    <path
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M38,28 C45,23 63,23 70,28">
+        <aapt:attr name="android:strokeColor">
             <gradient
-                android:startX="68"
-                android:startY="16"
-                android:endX="88"
-                android:endY="36"
+                android:startX="38"
+                android:startY="23"
+                android:endX="70"
+                android:endY="28"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#38BDF8" />
-                <item android:offset="1.0" android:color="#818CF8" />
+                <item android:offset="0.0" android:color="#F59E0B" />
+                <item android:offset="1.0" android:color="#FBBF24" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Mini Ambient Sparkle Left -->
-    <path android:pathData="M28,68 C28,72 31,74 34,74 C31,74 28,76 28,80 C28,76 25,74 22,74 C25,74 28,72 28,68 Z">
+    <!-- 6. Illumination / Focus Spark Indicator -->
+    <path android:pathData="M54,17 A3.5,3.5 0 1,0 54,24 A3.5,3.5 0 1,0 54,17">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="22"
-                android:startY="68"
-                android:endX="34"
-                android:endY="80"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#818CF8" />
-                <item android:offset="1.0" android:color="#F43F5E" />
+                android:centerX="54"
+                android:centerY="20.5"
+                android:gradientRadius="3.5"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#FDE68A" />
+                <item android:offset="1.0" android:color="#F59E0B" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Center Pristine White Play/Focus Prism -->
+    <!-- 7. Center Rounded Study Video Play Prism (Soft Corners, Smooth Curves) -->
+    <!-- Drop Shadow behind Play Prism -->
+    <path
+        android:fillColor="#25000000"
+        android:pathData="M46,43.5 C46,40.8 49,39.2 51.3,40.6 L67.2,49.8 C69.5,51.1 69.5,54.4 67.2,55.7 L51.3,64.9 C49,66.3 46,64.7 46,62 Z" />
+
+    <!-- Pure Crisp White Rounded Play Prism -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M48.5,43.5 C48.5,42.2 49.9,41.4 51.1,42.1 L64.8,50.6 C65.9,51.3 65.9,52.9 64.8,53.6 L51.1,62.1 C49.9,62.8 48.5,62.0 48.5,60.7 Z" />
+        android:pathData="M46,42 C46,39.3 49,37.7 51.3,39.1 L67.2,48.3 C69.5,49.6 69.5,52.9 67.2,54.2 L51.3,63.4 C49,64.8 46,63.2 46,60.5 Z" />
 
-    <!-- Center Lens Core Accent -->
+    <!-- Inner Soft-Light Core of Play Prism -->
     <path
-        android:fillColor="#E0E7FF"
-        android:pathData="M51.5,46.5 L60.5,52 L51.5,57.5 Z" />
+        android:fillColor="#EEF2FF"
+        android:pathData="M49,44.5 L63,51.5 L49,58.5 Z" />
 </vector>
