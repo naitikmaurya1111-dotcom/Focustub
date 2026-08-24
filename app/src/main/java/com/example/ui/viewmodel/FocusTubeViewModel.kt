@@ -168,16 +168,27 @@ class FocusTubeViewModel(
         _currentScreen.value = screen
     }
 
+    private var searchJob: Job? = null
+
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
-        if (query.isBlank()) {
+        searchJob?.cancel()
+        val trimmed = query.trim()
+        if (trimmed.isBlank()) {
             _searchResults.value = emptyList()
             _searchApiErrorMessage.value = null
             _isSearching.value = false
+        } else {
+            // Instant real-time debounced search as the user types
+            searchJob = viewModelScope.launch {
+                delay(300)
+                performSearch(trimmed, _selectedCategory.value, immediate = false)
+            }
         }
     }
 
     fun onSearchSubmitted(query: String) {
+        searchJob?.cancel()
         val trimmed = query.trim()
         _searchQuery.value = trimmed
         if (trimmed.isNotBlank()) {
@@ -187,6 +198,7 @@ class FocusTubeViewModel(
         } else {
             _searchResults.value = emptyList()
             _searchApiErrorMessage.value = null
+            _isSearching.value = false
         }
     }
 
@@ -202,12 +214,24 @@ class FocusTubeViewModel(
 
     fun onCategorySelected(categoryId: String) {
         _selectedCategory.value = categoryId
-        if (_searchQuery.value.isNotBlank()) {
-            performSearch(_searchQuery.value.trim(), categoryId, immediate = true)
+        val trimmed = _searchQuery.value.trim()
+        if (trimmed.isNotBlank()) {
+            performSearch(trimmed, categoryId, immediate = true)
+        } else {
+            // Load category curated list so user sees instant results
+            viewModelScope.launch {
+                _isSearching.value = true
+                _searchApiErrorMessage.value = null
+                val results = repository.search("", categoryId, apiKey = apiKeyProvider.getEffectiveApiKey())
+                _searchResults.value = results.lectures
+                _isLiveApiSearch.value = results.isLiveApiResult
+                _isSearching.value = false
+            }
         }
     }
 
     fun clearSearch() {
+        searchJob?.cancel()
         _searchQuery.value = ""
         _searchApiErrorMessage.value = null
         _searchResults.value = emptyList()
@@ -216,7 +240,7 @@ class FocusTubeViewModel(
 
     fun retrySearch() {
         if (_searchQuery.value.isNotBlank()) {
-            performSearch(_searchQuery.value, _selectedCategory.value, immediate = true)
+            performSearch(_searchQuery.value.trim(), _selectedCategory.value, immediate = true)
         }
     }
 
@@ -226,7 +250,8 @@ class FocusTubeViewModel(
             _isSearching.value = false
             return
         }
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _isSearching.value = true
             _searchApiErrorMessage.value = null
             val apiKey = apiKeyProvider.getEffectiveApiKey()

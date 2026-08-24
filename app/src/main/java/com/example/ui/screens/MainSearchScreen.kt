@@ -83,7 +83,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -260,12 +263,21 @@ fun MainSearchScreen(
                             )
                         },
                         leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = FocusIndigo,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            IconButton(
+                                onClick = {
+                                    if (searchQuery.isNotBlank()) {
+                                        onSearchSubmitted(searchQuery)
+                                        focusManager.clearFocus()
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = FocusIndigo,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         },
                         trailingIcon = {
                             AnimatedVisibility(
@@ -290,6 +302,15 @@ fun MainSearchScreen(
                             }
                         },
                         singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(
+                            onSearch = {
+                                if (searchQuery.isNotBlank()) {
+                                    onSearchSubmitted(searchQuery)
+                                    focusManager.clearFocus()
+                                }
+                            }
+                        ),
                         shape = RoundedCornerShape(16.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedContainerColor = SlateCard,

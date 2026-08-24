@@ -89,19 +89,7 @@ class LectureRepository(
 
         // 2. If live API key is available and search query is present
         if (apiKey.isNotBlank() && cleanQuery.isNotBlank()) {
-            val categoryModifier = when (categoryId) {
-                "cs" -> " computer science programming"
-                "math" -> " mathematics calculus linear algebra"
-                "physics" -> " physics mechanics university"
-                "chemistry" -> " chemistry organic chemistry"
-                "biology" -> " biology neuroscience"
-                "philosophy" -> " philosophy ethics"
-                "economics" -> " economics macroeconomics"
-                else -> " university lecture course"
-            }
-
-            val fullQuery = cleanQuery + categoryModifier
-            val liveResult = YouTubeApiClient.searchVideos(fullQuery, apiKey, categoryId)
+            val liveResult = YouTubeApiClient.searchVideos(cleanQuery, apiKey, categoryId)
 
             if (liveResult.isSuccess) {
                 val list = liveResult.getOrDefault(emptyList())

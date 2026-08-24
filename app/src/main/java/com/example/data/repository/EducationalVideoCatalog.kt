@@ -243,7 +243,10 @@ object EducationalVideoCatalog {
         var results = CURATED_LECTURES
 
         if (categoryId != "all") {
-            results = results.filter { it.category.equals(categoryId, ignoreCase = true) }
+            val filteredByCat = results.filter { it.category.equals(categoryId, ignoreCase = true) }
+            if (filteredByCat.isNotEmpty()) {
+                results = filteredByCat
+            }
         }
 
         if (cleanQuery.isBlank()) {
@@ -260,24 +263,25 @@ object EducationalVideoCatalog {
             val catLower = lecture.category.lowercase()
 
             for (term in terms) {
+                val t = term.lowercase()
                 when {
-                    titleLower.contains(term) -> score += 10
-                    channelLower.contains(term) -> score += 6
-                    descLower.contains(term) -> score += 3
-                    catLower.contains(term) -> score += 4
+                    titleLower.contains(t) -> score += 10
+                    channelLower.contains(t) -> score += 6
+                    catLower.contains(t) -> score += 4
+                    descLower.contains(t) -> score += 3
                 }
             }
 
             if (score > 0) Pair(lecture, score) else null
-        }.sortedByDescending { it.second }.map { it.first }
+        }.sortedByDescending { it.second }.map { it.first }.distinctBy { it.videoId }
 
         if (scoredResults.isNotEmpty()) {
             return scoredResults
         }
 
         // If no direct static matches, synthesize a clean topic-matching lecture package so study is never blocked
-        val synthesized = synthesizeDynamicTopic(cleanQuery, categoryId)
-        return listOf(synthesized) + CURATED_LECTURES.take(3)
+        val synthesized = synthesizeDynamicTopic(query, categoryId)
+        return (listOf(synthesized) + CURATED_LECTURES.take(8)).distinctBy { it.videoId }
     }
 
     private fun synthesizeDynamicTopic(query: String, categoryId: String): Lecture {

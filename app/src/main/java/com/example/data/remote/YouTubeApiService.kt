@@ -12,9 +12,7 @@ interface YouTubeApiService {
         @Query("key") apiKey: String,
         @Query("part") part: String = "snippet",
         @Query("type") type: String = "video",
-        @Query("videoEmbeddable") videoEmbeddable: String = "true",
-        @Query("maxResults") maxResults: Int = 20,
-        @Query("safeSearch") safeSearch: String = "strict"
+        @Query("maxResults") maxResults: Int = 30
     ): Response<YouTubeSearchResponse>
 
     @GET("youtube/v3/videos")
