@@ -99,15 +99,7 @@ import com.example.data.repository.ApiKeySource
 import com.example.data.repository.ApiKeyStatus
 import com.example.data.repository.EducationalVideoCatalog
 import com.example.ui.components.LectureCard
-import com.example.ui.theme.FocusAmber
-import com.example.ui.theme.FocusEmerald
-import com.example.ui.theme.FocusIndigo
-import com.example.ui.theme.ObsidianBg
-import com.example.ui.theme.SlateBorder
-import com.example.ui.theme.SlateCard
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.*
 
 private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
