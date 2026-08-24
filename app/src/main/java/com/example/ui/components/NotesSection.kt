@@ -260,8 +260,10 @@ fun NotesSection(
                     extractedTimestamps.forEach { (timeStr, seconds) ->
                         Box(
                             modifier = Modifier
-                                .background(Color(0x336366F1), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x336366F1))
+                                .clickable { onSeekTo(seconds) }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "▶ $timeStr",

@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDone
@@ -30,6 +31,8 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VpnKey
@@ -161,14 +164,36 @@ fun SettingsScreen(
             // Header
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "Settings & Preferences",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
-                        ),
-                        modifier = Modifier.testTag("settings_screen_title")
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Settings & Study Goals",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            ),
+                            modifier = Modifier.testTag("settings_screen_title")
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0x336366F1))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "v3.8",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = FocusIndigo,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            )
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Configure live YouTube API v3 connection, study timer presets, and learning analytics.",
@@ -666,7 +691,7 @@ fun SettingsScreen(
                 }
             }
 
-            // Philosophy manifesto card
+            // Philosophy manifesto & Version card
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -677,29 +702,44 @@ fun SettingsScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(18.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = null,
-                                tint = TextSecondary,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.School,
+                                    contentDescription = null,
+                                    tint = FocusIndigo,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "FocusTube Academic Suite",
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                )
+                            }
+
                             Text(
-                                text = "FocusTube Study Mission",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary
+                                text = "Version 3.8",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = FocusAmber,
+                                    fontWeight = FontWeight.Bold
                                 )
                             )
                         }
+
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "“The user opens FocusTube, watches the lecture they came for, takes structured notes, and studies in peace.”\n\nNo algorithmic rabbit holes, no recommendations, no infinite feeds. Pure academic focus.",
+                            text = "“The student opens FocusTube, watches the lecture they came for, takes structured notes, and studies in peace.”\n\nPure academic focus with zero algorithmic distractions.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 lineHeight = 18.sp

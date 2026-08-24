@@ -1,6 +1,8 @@
 package com.example
 
+import android.app.Activity
 import android.os.Bundle
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -36,12 +38,18 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.Lecture
 import com.example.data.repository.ApiKeyStatus
@@ -99,9 +107,30 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
     val timerState by viewModel.timerState.collectAsStateWithLifecycle()
     val currentNotes by viewModel.currentNotes.collectAsStateWithLifecycle()
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
+    val activity = context as? Activity
     val configuration = LocalConfiguration.current
-    val isExpanded = configuration.screenWidthDp >= 760
+    val isExpanded = configuration.screenWidthDp >= 600
+
+    // Fullscreen Immersive Controller (Completely eliminates top bold bar and navigation bar in fullscreen)
+    DisposableEffect(isFocusMode) {
+        activity?.window?.let { window ->
+            val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+            if (isFocusMode) {
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior =
+                    WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+        onDispose {
+            activity?.window?.let { window ->
+                val insetsController = WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
 
     if (currentScreen == FocusScreen.PLAYER && currentLecture != null) {
         // Dedicated Lecture Player (No bottom/rail nav)
@@ -113,7 +142,13 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
             openInYouTubeDefault = openInYouTubeDefault,
             timerState = timerState,
             notes = currentNotes,
-            onBack = { viewModel.navigateTo(FocusScreen.SEARCH) },
+            onBack = {
+                if (isFocusMode) {
+                    viewModel.toggleFocusMode()
+                } else {
+                    viewModel.navigateTo(FocusScreen.SEARCH)
+                }
+            },
             onToggleFocusMode = { viewModel.toggleFocusMode() },
             onToggleSave = { viewModel.toggleSaveLecture(currentLecture!!) },
             onSpeedChanged = { viewModel.setPlaybackSpeed(it) },
@@ -226,16 +261,14 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         apiKeyValidationResult = apiKeyValidationResult,
                         keepScreenOn = keepScreenOn,
                         openInYouTubeDefault = openInYouTubeDefault,
-                        defaultTimerMinutes = timerState.initialMinutes,
                         onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                        onSearchSubmitted = { viewModel.onSearchSubmitted(it) },
+                        onSearchSubmitted = { viewModel.searchLectures(it) },
                         onCategorySelected = { viewModel.onCategorySelected(it) },
                         onClearSearch = { viewModel.clearSearch() },
-                        onRetrySearch = { viewModel.retrySearch() },
+                        onRetrySearch = { viewModel.retryLastSearch() },
                         onOpenSettings = { viewModel.navigateTo(FocusScreen.SETTINGS) },
-                        onLectureSelected = { viewModel.selectLectureToWatch(it) },
+                        onLectureSelected = { viewModel.selectLecture(it) },
                         onToggleSaveLecture = { viewModel.toggleSaveLecture(it) },
-                        onNavigateToSearch = { viewModel.navigateTo(FocusScreen.SEARCH) },
                         onSaveApiKey = { viewModel.saveCustomApiKey(it) },
                         onClearApiKey = { viewModel.clearCustomApiKey() },
                         onTestApiKey = { viewModel.testApiKey(it) },
@@ -344,16 +377,14 @@ fun FocusTubeApp(viewModel: FocusTubeViewModel) {
                         apiKeyValidationResult = apiKeyValidationResult,
                         keepScreenOn = keepScreenOn,
                         openInYouTubeDefault = openInYouTubeDefault,
-                        defaultTimerMinutes = timerState.initialMinutes,
                         onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
-                        onSearchSubmitted = { viewModel.onSearchSubmitted(it) },
+                        onSearchSubmitted = { viewModel.searchLectures(it) },
                         onCategorySelected = { viewModel.onCategorySelected(it) },
                         onClearSearch = { viewModel.clearSearch() },
-                        onRetrySearch = { viewModel.retrySearch() },
+                        onRetrySearch = { viewModel.retryLastSearch() },
                         onOpenSettings = { viewModel.navigateTo(FocusScreen.SETTINGS) },
-                        onLectureSelected = { viewModel.selectLectureToWatch(it) },
+                        onLectureSelected = { viewModel.selectLecture(it) },
                         onToggleSaveLecture = { viewModel.toggleSaveLecture(it) },
-                        onNavigateToSearch = { viewModel.navigateTo(FocusScreen.SEARCH) },
                         onSaveApiKey = { viewModel.saveCustomApiKey(it) },
                         onClearApiKey = { viewModel.clearCustomApiKey() },
                         onTestApiKey = { viewModel.testApiKey(it) },
@@ -386,7 +417,6 @@ private fun ScreenContent(
     apiKeyValidationResult: String?,
     keepScreenOn: Boolean,
     openInYouTubeDefault: Boolean,
-    defaultTimerMinutes: Int,
     onSearchQueryChanged: (String) -> Unit,
     onSearchSubmitted: (String) -> Unit,
     onCategorySelected: (String) -> Unit,
@@ -395,7 +425,6 @@ private fun ScreenContent(
     onOpenSettings: () -> Unit,
     onLectureSelected: (Lecture) -> Unit,
     onToggleSaveLecture: (Lecture) -> Unit,
-    onNavigateToSearch: () -> Unit,
     onSaveApiKey: (String) -> Unit,
     onClearApiKey: () -> Unit,
     onTestApiKey: (String) -> Unit,
@@ -403,14 +432,16 @@ private fun ScreenContent(
     onToggleKeepScreenOn: () -> Unit,
     onToggleOpenInYouTubeDefault: () -> Unit,
     onDefaultTimerChanged: (Int) -> Unit,
-    onClearAllData: () -> Unit
+    onClearAllData: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "screen_transition"
-    ) { targetScreen ->
-        when (targetScreen) {
+        label = "screen_transition",
+        modifier = modifier.fillMaxSize()
+    ) { screen ->
+        when (screen) {
             FocusScreen.SEARCH -> {
                 MainSearchScreen(
                     searchQuery = searchQuery,
@@ -436,7 +467,7 @@ private fun ScreenContent(
                     savedLectures = savedLectures,
                     onLectureSelected = onLectureSelected,
                     onToggleSaveLecture = onToggleSaveLecture,
-                    onNavigateToSearch = onNavigateToSearch
+                    onNavigateToSearch = { onSearchSubmitted("") }
                 )
             }
             FocusScreen.SETTINGS -> {
@@ -448,7 +479,7 @@ private fun ScreenContent(
                     openInYouTubeDefault = openInYouTubeDefault,
                     totalMinutesStudied = totalMinutesStudied,
                     savedCount = savedLectures.size,
-                    defaultTimerMinutes = defaultTimerMinutes,
+                    defaultTimerMinutes = 25,
                     onSaveApiKey = onSaveApiKey,
                     onClearApiKey = onClearApiKey,
                     onTestApiKey = onTestApiKey,
@@ -460,7 +491,7 @@ private fun ScreenContent(
                 )
             }
             FocusScreen.PLAYER -> {
-                // Handled at top-level
+                // Handled in parent
             }
         }
     }

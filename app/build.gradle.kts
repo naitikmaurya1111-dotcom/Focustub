@@ -17,8 +17,8 @@ android {
     applicationId = "com.aistudio.focustube.vqdknm"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = 38
+    versionName = "3.8"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

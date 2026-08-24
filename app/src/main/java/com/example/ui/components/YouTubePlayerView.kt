@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.net.Uri
-import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -24,8 +23,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,69 +33,46 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.data.remote.ChapterParser
 import com.example.ui.theme.FocusAmber
-import com.example.ui.theme.FocusEmerald
 import com.example.ui.theme.FocusIndigo
-import com.example.ui.theme.ObsidianBg
-import com.example.ui.theme.SlateBorder
-import com.example.ui.theme.SlateCard
-import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
-import kotlinx.coroutines.delay
 
 class YouTubePlayerController {
     var seekTo: ((seconds: Int) -> Unit)? = null
     var seekRelative: ((deltaSeconds: Int) -> Unit)? = null
     var setPlaybackSpeed: ((speed: Float) -> Unit)? = null
+    var setPlaybackQuality: ((quality: String) -> Unit)? = null
     var play: (() -> Unit)? = null
     var pause: (() -> Unit)? = null
     var togglePlayPause: (() -> Unit)? = null
@@ -134,6 +108,7 @@ fun YouTubePlayerView(
     videoId: String,
     startSeconds: Int = 0,
     playbackSpeed: Float = 1.0f,
+    playbackQuality: String = "auto",
     controller: YouTubePlayerController? = null,
     onProgressUpdate: (current: Int, total: Int) -> Unit,
     modifier: Modifier = Modifier
@@ -148,8 +123,6 @@ fun YouTubePlayerView(
 
     var currentSec by remember { mutableIntStateOf(startSeconds) }
     var totalSec by remember { mutableIntStateOf(0) }
-    var showCustomOverlay by remember { mutableStateOf(false) }
-    var doubleTapSeekFeedback by remember { mutableStateOf<String?>(null) }
 
     // HTML5 Fullscreen support via WebChromeClient custom view
     var customView by remember { mutableStateOf<View?>(null) }
@@ -176,6 +149,12 @@ fun YouTubePlayerView(
             setPlaybackSpeed = { speed ->
                 webViewRef?.evaluateJavascript(
                     "if (window.player && player.setPlaybackRate) { player.setPlaybackRate($speed); }",
+                    null
+                )
+            }
+            setPlaybackQuality = { quality ->
+                webViewRef?.evaluateJavascript(
+                    "if (window.player && player.setPlaybackQuality) { player.setPlaybackQuality('$quality'); }",
                     null
                 )
             }
@@ -213,15 +192,7 @@ fun YouTubePlayerView(
         }
     }
 
-    // Auto-hide double tap feedback
-    LaunchedEffect(doubleTapSeekFeedback) {
-        if (doubleTapSeekFeedback != null) {
-            delay(800)
-            doubleTapSeekFeedback = null
-        }
-    }
-
-    // Handle back press while in video fullscreen mode
+    // Handle back press while in video custom fullscreen mode
     BackHandler(enabled = customView != null) {
         customViewCallback?.onCustomViewHidden()
         customView = null
@@ -229,10 +200,18 @@ fun YouTubePlayerView(
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
 
-    // Update speed dynamically
+    // Update speed dynamically when state changes
     LaunchedEffect(playbackSpeed) {
         webViewRef?.evaluateJavascript(
             "if (window.player && player.setPlaybackRate) { player.setPlaybackRate($playbackSpeed); }",
+            null
+        )
+    }
+
+    // Update quality dynamically when state changes
+    LaunchedEffect(playbackQuality) {
+        webViewRef?.evaluateJavascript(
+            "if (window.player && player.setPlaybackQuality) { player.setPlaybackQuality('$playbackQuality'); }",
             null
         )
     }
@@ -261,7 +240,6 @@ fun YouTubePlayerView(
                 html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
                 #player-wrapper { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #000000; }
                 #player { width: 100%; height: 100%; border: none; }
-                /* Hide YouTube default related video and info overlays */
                 .ytp-pause-overlay, .ytp-scroll-min { display: none !important; }
             </style>
         </head>
@@ -308,6 +286,9 @@ fun YouTubePlayerView(
                 function onPlayerReady(event) {
                     try {
                         event.target.setPlaybackRate($playbackSpeed);
+                        if ('$playbackQuality' !== 'auto') {
+                            event.target.setPlaybackQuality('$playbackQuality');
+                        }
                         event.target.playVideo();
                     } catch(e) {}
                     startProgressTracker();
@@ -340,7 +321,7 @@ fun YouTubePlayerView(
                                 var curr = player.getCurrentTime() || 0;
                                 var dur = player.getDuration() || 0;
 
-                                // A/B Looping logic
+                                // A/B Looping
                                 if (window.loopStart !== null && window.loopEnd !== null && window.loopEnd > window.loopStart) {
                                     if (curr >= window.loopEnd) {
                                         player.seekTo(window.loopStart, true);
@@ -435,7 +416,7 @@ fun YouTubePlayerView(
                             allowFileAccess = true
                             allowContentAccess = true
 
-                            // High-compatibility Chrome Mobile User-Agent to avoid Webview restriction
+                            // High-compatibility Chrome Mobile User-Agent
                             val originalUa = userAgentString ?: ""
                             val cleanedUa = originalUa
                                 .replace("; wv", "")
@@ -482,7 +463,7 @@ fun YouTubePlayerView(
                             ): Boolean {
                                 val url = request?.url?.toString().orEmpty()
                                 if (url.startsWith("intent://") || url.startsWith("vnd.youtube:")) {
-                                    return true // Lock inside the study player
+                                    return true
                                 }
                                 return false
                             }
@@ -521,26 +502,7 @@ fun YouTubePlayerView(
             )
         }
 
-        // Double-Tap Seek Feedback Animation Overlay
-        doubleTapSeekFeedback?.let { feedback ->
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(Color(0xCC090D16))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = feedback,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                )
-            }
-        }
-
-        // Fallback UI if creator strictly restricted embedding
+        // Fallback UI if creator restricted embedding
         playerError?.let {
             Box(
                 modifier = Modifier

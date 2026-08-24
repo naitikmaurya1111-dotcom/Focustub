@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,18 +17,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Lecture
 import com.example.ui.components.LectureCard
+import com.example.ui.theme.FocusAmber
 import com.example.ui.theme.FocusIndigo
 import com.example.ui.theme.ObsidianBg
 import com.example.ui.theme.SlateBorder
@@ -54,7 +60,8 @@ import com.example.ui.theme.TextSecondary
 enum class LibraryFilter {
     ALL,
     IN_PROGRESS,
-    COMPLETED
+    COMPLETED,
+    HAS_NOTES
 }
 
 @Composable
@@ -66,12 +73,24 @@ fun LibraryScreen(
     modifier: Modifier = Modifier
 ) {
     var selectedFilter by remember { mutableStateOf(LibraryFilter.ALL) }
+    var librarySearchQuery by remember { mutableStateOf("") }
 
-    val filteredLectures = remember(savedLectures, selectedFilter) {
-        when (selectedFilter) {
+    val filteredLectures = remember(savedLectures, selectedFilter, librarySearchQuery) {
+        val byFilter = when (selectedFilter) {
             LibraryFilter.ALL -> savedLectures
             LibraryFilter.IN_PROGRESS -> savedLectures.filter { !it.isCompleted && it.progressSeconds > 0 }
             LibraryFilter.COMPLETED -> savedLectures.filter { it.isCompleted }
+            LibraryFilter.HAS_NOTES -> savedLectures.filter { it.notes.isNotBlank() }
+        }
+
+        if (librarySearchQuery.isBlank()) {
+            byFilter
+        } else {
+            byFilter.filter {
+                it.title.contains(librarySearchQuery, ignoreCase = true) ||
+                it.channelTitle.contains(librarySearchQuery, ignoreCase = true) ||
+                it.notes.contains(librarySearchQuery, ignoreCase = true)
+            }
         }
     }
 
@@ -107,42 +126,95 @@ fun LibraryScreen(
                 }
             }
 
-            // Filters
+            // Quick Filter & Search inside Library
             if (savedLectures.isNotEmpty()) {
                 item {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        listOf(
-                            LibraryFilter.ALL to "All Saved (${savedLectures.size})",
-                            LibraryFilter.IN_PROGRESS to "In Progress (${savedLectures.count { !it.isCompleted && it.progressSeconds > 0 }})",
-                            LibraryFilter.COMPLETED to "Completed (${savedLectures.count { it.isCompleted }})"
-                        ).forEach { (filter, label) ->
-                            val isSelected = selectedFilter == filter
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { selectedFilter = filter },
-                                label = {
-                                    Text(
-                                        text = label,
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSelected) Color.White else TextSecondary
+                        // Search bar inside library
+                        OutlinedTextField(
+                            value = librarySearchQuery,
+                            onValueChange = { librarySearchQuery = it },
+                            placeholder = {
+                                Text(
+                                    text = "Filter saved lectures or your study notes...",
+                                    style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted)
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = FocusIndigo,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (librarySearchQuery.isNotBlank()) {
+                                    IconButton(onClick = { librarySearchQuery = "" }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Clear,
+                                            contentDescription = "Clear filter",
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(18.dp)
                                         )
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = FocusIndigo,
-                                    containerColor = SlateCard
-                                ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = SlateCard,
+                                unfocusedContainerColor = SlateCard,
+                                focusedBorderColor = FocusIndigo,
+                                unfocusedBorderColor = SlateBorder,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                cursorColor = FocusIndigo
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Filter Chips
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                        ) {
+                            listOf(
+                                LibraryFilter.ALL to "All (${savedLectures.size})",
+                                LibraryFilter.IN_PROGRESS to "In Progress (${savedLectures.count { !it.isCompleted && it.progressSeconds > 0 }})",
+                                LibraryFilter.COMPLETED to "Completed (${savedLectures.count { it.isCompleted }})",
+                                LibraryFilter.HAS_NOTES to "With Notes (${savedLectures.count { it.notes.isNotBlank() }})"
+                            ).forEach { (filter, label) ->
+                                val isSelected = selectedFilter == filter
+                                FilterChip(
                                     selected = isSelected,
-                                    borderColor = if (isSelected) FocusIndigo else SlateBorder
-                                ),
-                                shape = RoundedCornerShape(10.dp)
-                            )
+                                    onClick = { selectedFilter = filter },
+                                    label = {
+                                        Text(
+                                            text = label,
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                color = if (isSelected) Color.White else TextSecondary
+                                            )
+                                        )
+                                    },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = FocusIndigo,
+                                        containerColor = SlateCard
+                                    ),
+                                    border = FilterChipDefaults.filterChipBorder(
+                                        enabled = true,
+                                        selected = isSelected,
+                                        borderColor = if (isSelected) FocusIndigo else SlateBorder
+                                    ),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -176,7 +248,7 @@ fun LibraryScreen(
                             text = if (savedLectures.isEmpty())
                                 "Search for lectures and bookmark them to construct your personalized academic syllabus."
                             else
-                                "Switch filters to view all your saved educational videos.",
+                                "Clear filters or search query to view all your saved educational videos.",
                             style = MaterialTheme.typography.bodySmall.copy(color = TextMuted),
                             modifier = Modifier.padding(horizontal = 24.dp)
                         )
