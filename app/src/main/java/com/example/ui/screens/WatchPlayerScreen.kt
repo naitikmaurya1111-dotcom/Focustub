@@ -1,16 +1,15 @@
 package com.example.ui.screens
 
 import android.app.Activity
-import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
-import android.net.Uri
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -27,7 +26,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,12 +37,17 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CenterFocusStrong
 import androidx.compose.material.icons.filled.CenterFocusWeak
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
-import androidx.compose.material.icons.filled.OndemandVideo
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Loop
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.ScreenLockPortrait
+import androidx.compose.material.icons.filled.PlayCircleFilled
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -58,34 +61,37 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.data.model.Lecture
+import com.example.data.model.LectureChapter
+import com.example.data.remote.ChapterParser
 import com.example.ui.components.NotesSection
 import com.example.ui.components.StudyTimerWidget
+import com.example.ui.components.YouTubePlayerController
 import com.example.ui.components.YouTubePlayerView
 import com.example.ui.theme.FocusAmber
 import com.example.ui.theme.FocusEmerald
@@ -97,6 +103,13 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.StudyTimerState
+
+enum class StudyStudioTab {
+    NOTES,
+    CHAPTERS,
+    TIMER,
+    SYLLABUS
+}
 
 @Composable
 fun WatchPlayerScreen(
@@ -125,19 +138,23 @@ fun WatchPlayerScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    val playerController = remember { YouTubePlayerController() }
+    var currentPlaybackSec by remember { mutableIntStateOf(lecture.progressSeconds) }
+    var totalDurationSec by remember { mutableIntStateOf(lecture.totalSeconds) }
+    var selectedTab by remember { mutableStateOf(StudyStudioTab.NOTES) }
     var showControlsInFocusMode by remember { mutableStateOf(true) }
-    var useInAppPlayer by remember(lecture.videoId, openInYouTubeDefault) {
-        mutableStateOf(!openInYouTubeDefault)
+
+    // A/B Looper State
+    var isLoopActive by remember { mutableStateOf(false) }
+    var loopStartSec by remember { mutableIntStateOf(0) }
+    var loopEndSec by remember { mutableIntStateOf(0) }
+
+    // Parse lecture chapters from description
+    val chapters = remember(lecture.description) {
+        ChapterParser.parseChapters(lecture.description)
     }
 
-    // Auto-launch YouTube link as default without requiring touching every time
-    LaunchedEffect(lecture.videoId, openInYouTubeDefault) {
-        if (openInYouTubeDefault && !useInAppPlayer) {
-            onOpenInYouTube(lecture.videoId)
-        }
-    }
-
-    // Keep screen awake effect
+    // Keep screen awake during study
     DisposableEffect(keepScreenOn) {
         if (keepScreenOn) {
             activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -147,7 +164,7 @@ fun WatchPlayerScreen(
         }
     }
 
-    // Restore portrait when leaving if changed
+    // Restore portrait when leaving
     DisposableEffect(Unit) {
         onDispose {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
@@ -162,7 +179,7 @@ fun WatchPlayerScreen(
         }
     }
 
-    // FOCUS MODE VIEW (Distraction-Free)
+    // FULLSCREEN FOCUS MODE (Immersive HUD)
     if (isFocusMode) {
         Box(
             modifier = modifier
@@ -171,21 +188,18 @@ fun WatchPlayerScreen(
                 .clickable { showControlsInFocusMode = !showControlsInFocusMode }
                 .testTag("focus_mode_container")
         ) {
-            if (useInAppPlayer) {
-                YouTubePlayerView(
-                    videoId = lecture.videoId,
-                    startSeconds = lecture.progressSeconds,
-                    playbackSpeed = playbackSpeed,
-                    onProgressUpdate = onProgressUpdate,
-                    modifier = Modifier.fillMaxSize()
-                )
-            } else {
-                YouTubeCompanionFocusCard(
-                    lecture = lecture,
-                    onOpenInYouTube = { onOpenInYouTube(lecture.videoId) },
-                    onSwitchToInAppPlayer = { useInAppPlayer = true }
-                )
-            }
+            YouTubePlayerView(
+                videoId = lecture.videoId,
+                startSeconds = lecture.progressSeconds,
+                playbackSpeed = playbackSpeed,
+                controller = playerController,
+                onProgressUpdate = { cur, tot ->
+                    currentPlaybackSec = cur
+                    totalDurationSec = tot
+                    onProgressUpdate(cur, tot)
+                },
+                modifier = Modifier.fillMaxSize()
+            )
 
             // Minimalist HUD Overlay in Focus Mode
             AnimatedVisibility(
@@ -197,7 +211,7 @@ fun WatchPlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0x77000000))
+                        .background(Color(0x88000000))
                         .padding(16.dp)
                 ) {
                     // Top Bar
@@ -215,7 +229,7 @@ fun WatchPlayerScreen(
                             IconButton(
                                 onClick = onToggleFocusMode,
                                 modifier = Modifier
-                                    .background(Color(0xCC1E293B), CircleShape)
+                                    .background(Color(0xDD1E293B), CircleShape)
                                     .testTag("exit_focus_mode_button")
                             ) {
                                 Icon(
@@ -226,7 +240,7 @@ fun WatchPlayerScreen(
                             }
 
                             Text(
-                                text = "FOCUS MODE ACTIVE",
+                                text = "FOCUS STUDY MODE",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = FocusAmber,
@@ -239,7 +253,7 @@ fun WatchPlayerScreen(
                         if (timerState.isRunning) {
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0xCC090D16), RoundedCornerShape(8.dp))
+                                    .background(Color(0xDD090D16), RoundedCornerShape(8.dp))
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
                                 Row(
@@ -272,12 +286,40 @@ fun WatchPlayerScreen(
                                     ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                                 }
                             },
-                            modifier = Modifier.background(Color(0xCC1E293B), CircleShape)
+                            modifier = Modifier.background(Color(0xDD1E293B), CircleShape)
                         ) {
                             Icon(
                                 imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
                                 contentDescription = "Toggle Fullscreen Orientation",
                                 tint = Color.White
+                            )
+                        }
+                    }
+
+                    // Quick 10s Rewind & Forward Controls in Focus HUD
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .background(Color(0x99090D16), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { playerController.seekRelative?.invoke(-10) }) {
+                            Icon(
+                                imageVector = Icons.Default.Replay10,
+                                contentDescription = "Rewind 10s",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        IconButton(onClick = { playerController.seekRelative?.invoke(10) }) {
+                            Icon(
+                                imageVector = Icons.Default.Forward10,
+                                contentDescription = "Forward 10s",
+                                tint = Color.White,
+                                modifier = Modifier.size(32.dp)
                             )
                         }
                     }
@@ -293,7 +335,7 @@ fun WatchPlayerScreen(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .background(Color(0xAA090D16), RoundedCornerShape(8.dp))
+                            .background(Color(0xCC090D16), RoundedCornerShape(8.dp))
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
@@ -302,7 +344,7 @@ fun WatchPlayerScreen(
         return
     }
 
-    // STANDARD DEDICATED STUDY PLAYER VIEW
+    // STANDARD STUDY STUDIO VIEW
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -312,110 +354,138 @@ fun WatchPlayerScreen(
         val isWideScreen = maxWidth >= 760.dp
 
         if (isWideScreen) {
-            // Adaptive Tablet Dual-Pane
+            // Adaptive Tablet Dual-Pane Study Studio
             Row(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Left pane: Video & Core controls
+                // Left pane: Video & Study Player Controls
                 Column(
                     modifier = Modifier
-                        .weight(1.2f)
+                        .weight(1.15f)
                         .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
                         .padding(16.dp)
                 ) {
-                    PlayerHeader(
+                    StudioPlayerHeader(
                         lecture = lecture,
                         onBack = onBack,
                         onToggleFocusMode = onToggleFocusMode,
                         onToggleSave = onToggleSave
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Player / Companion Area
-                    if (useInAppPlayer) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color.Black)
-                        ) {
-                            YouTubePlayerView(
-                                videoId = lecture.videoId,
-                                startSeconds = lecture.progressSeconds,
-                                playbackSpeed = playbackSpeed,
-                                onProgressUpdate = onProgressUpdate,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 6.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            TextButton(
-                                onClick = {
-                                    useInAppPlayer = false
-                                    onOpenInYouTube(lecture.videoId)
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                    tint = FocusIndigo
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Open in Web Browser",
-                                    style = MaterialTheme.typography.labelSmall.copy(color = FocusIndigo)
-                                )
-                            }
-                        }
-                    } else {
-                        YouTubeCompanionCard(
-                            lecture = lecture,
-                            onOpenInYouTube = { onOpenInYouTube(lecture.videoId) },
-                            onSwitchToInAppPlayer = { useInAppPlayer = true }
+                    // Player Frame
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.Black)
+                            .border(1.dp, SlateBorder, RoundedCornerShape(16.dp))
+                    ) {
+                        YouTubePlayerView(
+                            videoId = lecture.videoId,
+                            startSeconds = lecture.progressSeconds,
+                            playbackSpeed = playbackSpeed,
+                            controller = playerController,
+                            onProgressUpdate = { cur, tot ->
+                                currentPlaybackSec = cur
+                                totalDurationSec = tot
+                                onProgressUpdate(cur, tot)
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    SpeedSelectorRow(
+                    // Quick Study Controls Toolbar
+                    QuickStudyControlsBar(
                         currentSpeed = playbackSpeed,
-                        onSpeedSelected = onSpeedChanged
+                        isLoopActive = isLoopActive,
+                        loopStartSec = loopStartSec,
+                        loopEndSec = loopEndSec,
+                        onRewind10 = { playerController.seekRelative?.invoke(-10) },
+                        onForward10 = { playerController.seekRelative?.invoke(10) },
+                        onSpeedSelected = onSpeedChanged,
+                        onToggleLoop = {
+                            if (isLoopActive) {
+                                isLoopActive = false
+                                playerController.clearLoop?.invoke()
+                            } else {
+                                isLoopActive = true
+                                loopStartSec = (currentPlaybackSec - 10).coerceAtLeast(0)
+                                loopEndSec = currentPlaybackSec + 20
+                                playerController.setLoopRange?.invoke(loopStartSec, loopEndSec)
+                            }
+                        }
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
+                    // Lecture Metadata Overview
                     LectureMetadataBox(lecture = lecture)
                 }
 
-                // Right pane: Study Timer & Scratchpad Notes
+                // Right pane: Tabs (Notes, Chapters, Study Timer, Syllabus)
                 Column(
                     modifier = Modifier
-                        .weight(0.8f)
+                        .weight(0.85f)
                         .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .background(Color(0xFF0C101A))
+                        .padding(16.dp)
                 ) {
-                    StudyTimerWidget(
-                        timerState = timerState,
-                        onStart = onStartTimer,
-                        onPause = onPauseTimer,
-                        onResume = onResumeTimer,
-                        onReset = onResetTimer
+                    StudyStudioTabsBar(
+                        selectedTab = selectedTab,
+                        hasChapters = chapters.isNotEmpty(),
+                        onTabSelected = { selectedTab = it }
                     )
 
-                    NotesSection(
-                        notes = notes,
-                        onNotesChanged = onNotesChanged
-                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        when (selectedTab) {
+                            StudyStudioTab.NOTES -> {
+                                NotesSection(
+                                    notes = notes,
+                                    currentPlaybackSeconds = currentPlaybackSec,
+                                    onNotesChanged = onNotesChanged,
+                                    onSeekTo = { playerController.seekTo?.invoke(it) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            StudyStudioTab.CHAPTERS -> {
+                                ChaptersListView(
+                                    chapters = chapters,
+                                    currentSeconds = currentPlaybackSec,
+                                    onChapterClick = { sec -> playerController.seekTo?.invoke(sec) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            StudyStudioTab.TIMER -> {
+                                StudyTimerWidget(
+                                    timerState = timerState,
+                                    onStart = onStartTimer,
+                                    onPause = onPauseTimer,
+                                    onResume = onResumeTimer,
+                                    onReset = onResetTimer,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            StudyStudioTab.SYLLABUS -> {
+                                LectureSyllabusInfoView(
+                                    lecture = lecture,
+                                    onOpenInBrowser = { onOpenInYouTube(lecture.videoId) },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
                 }
             }
         } else {
@@ -424,88 +494,104 @@ fun WatchPlayerScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                PlayerHeader(
+                StudioPlayerHeader(
                     lecture = lecture,
                     onBack = onBack,
                     onToggleFocusMode = onToggleFocusMode,
                     onToggleSave = onToggleSave
                 )
 
-                // Video / Companion Container
-                if (useInAppPlayer) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color.Black)
-                    ) {
-                        YouTubePlayerView(
-                            videoId = lecture.videoId,
-                            startSeconds = lecture.progressSeconds,
-                            playbackSpeed = playbackSpeed,
-                            onProgressUpdate = onProgressUpdate,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(
-                            onClick = {
-                                useInAppPlayer = false
-                                onOpenInYouTube(lecture.videoId)
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = FocusIndigo
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Open in Web Browser",
-                                style = MaterialTheme.typography.labelSmall.copy(color = FocusIndigo)
-                            )
-                        }
-                    }
-                } else {
-                    YouTubeCompanionCard(
-                        lecture = lecture,
-                        onOpenInYouTube = { onOpenInYouTube(lecture.videoId) },
-                        onSwitchToInAppPlayer = { useInAppPlayer = true }
+                // Video Player Container
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black)
+                        .border(1.dp, SlateBorder, RoundedCornerShape(16.dp))
+                ) {
+                    YouTubePlayerView(
+                        videoId = lecture.videoId,
+                        startSeconds = lecture.progressSeconds,
+                        playbackSpeed = playbackSpeed,
+                        controller = playerController,
+                        onProgressUpdate = { cur, tot ->
+                            currentPlaybackSec = cur
+                            totalDurationSec = tot
+                            onProgressUpdate(cur, tot)
+                        },
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
 
-                // Speed Selector
-                SpeedSelectorRow(
+                // Quick Study Controls Toolbar (Rewind 10, Forward 10, Speed, Loop)
+                QuickStudyControlsBar(
                     currentSpeed = playbackSpeed,
-                    onSpeedSelected = onSpeedChanged
+                    isLoopActive = isLoopActive,
+                    loopStartSec = loopStartSec,
+                    loopEndSec = loopEndSec,
+                    onRewind10 = { playerController.seekRelative?.invoke(-10) },
+                    onForward10 = { playerController.seekRelative?.invoke(10) },
+                    onSpeedSelected = onSpeedChanged,
+                    onToggleLoop = {
+                        if (isLoopActive) {
+                            isLoopActive = false
+                            playerController.clearLoop?.invoke()
+                        } else {
+                            isLoopActive = true
+                            loopStartSec = (currentPlaybackSec - 10).coerceAtLeast(0)
+                            loopEndSec = currentPlaybackSec + 20
+                            playerController.setLoopRange?.invoke(loopStartSec, loopEndSec)
+                        }
+                    }
                 )
+
+                // Segmented Study Tabs
+                StudyStudioTabsBar(
+                    selectedTab = selectedTab,
+                    hasChapters = chapters.isNotEmpty(),
+                    onTabSelected = { selectedTab = it }
+                )
+
+                // Tab Content
+                when (selectedTab) {
+                    StudyStudioTab.NOTES -> {
+                        NotesSection(
+                            notes = notes,
+                            currentPlaybackSeconds = currentPlaybackSec,
+                            onNotesChanged = onNotesChanged,
+                            onSeekTo = { playerController.seekTo?.invoke(it) }
+                        )
+                    }
+                    StudyStudioTab.CHAPTERS -> {
+                        ChaptersListView(
+                            chapters = chapters,
+                            currentSeconds = currentPlaybackSec,
+                            onChapterClick = { sec -> playerController.seekTo?.invoke(sec) }
+                        )
+                    }
+                    StudyStudioTab.TIMER -> {
+                        StudyTimerWidget(
+                            timerState = timerState,
+                            onStart = onStartTimer,
+                            onPause = onPauseTimer,
+                            onResume = onResumeTimer,
+                            onReset = onResetTimer
+                        )
+                    }
+                    StudyStudioTab.SYLLABUS -> {
+                        LectureSyllabusInfoView(
+                            lecture = lecture,
+                            onOpenInBrowser = { onOpenInYouTube(lecture.videoId) }
+                        )
+                    }
+                }
 
                 // Lecture Information Card
                 LectureMetadataBox(lecture = lecture)
-
-                // Study Companion Timer
-                StudyTimerWidget(
-                    timerState = timerState,
-                    onStart = onStartTimer,
-                    onPause = onPauseTimer,
-                    onResume = onResumeTimer,
-                    onReset = onResetTimer
-                )
-
-                // Study Scratchpad Notes
-                NotesSection(
-                    notes = notes,
-                    onNotesChanged = onNotesChanged
-                )
 
                 Spacer(modifier = Modifier.height(30.dp))
             }
@@ -514,296 +600,7 @@ fun WatchPlayerScreen(
 }
 
 @Composable
-fun YouTubeCompanionCard(
-    lecture: Lecture,
-    onOpenInYouTube: () -> Unit,
-    onSwitchToInAppPlayer: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("youtube_companion_card"),
-        colors = CardDefaults.cardColors(containerColor = SlateCard),
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x336366F1))
-    ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Thumbnail with gradient overlay & Play Button
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(Color.Black)
-                    .clickable { onOpenInYouTube() }
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(lecture.thumbnailUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = lecture.title,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Gradient overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color(0x33000000),
-                                    Color(0xBB080C14)
-                                )
-                            )
-                        )
-                )
-
-                // Center YouTube launch button
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(56.dp)
-                        .background(Color(0xE6EF4444), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Watch in YouTube",
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-
-                // Top Badge: Status
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xDD090D16))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = FocusEmerald,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "Launched in Web Browser",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = FocusEmerald,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            )
-                        )
-                    }
-                }
-
-                // Duration Pill
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = lecture.duration,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    )
-                }
-            }
-
-            // Controls & Options below thumbnail
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp)
-            ) {
-                Text(
-                    text = "Video opened in your distraction-free web browser (no YouTube app recommendations / shorts).",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = onOpenInYouTube,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = FocusIndigo,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("reopen_in_browser_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Reopen in Browser",
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-
-                    OutlinedButton(
-                        onClick = onSwitchToInAppPlayer,
-                        shape = RoundedCornerShape(10.dp),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                        modifier = Modifier.testTag("try_embedded_player_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.OndemandVideo,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = TextSecondary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("In-App", style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun YouTubeCompanionFocusCard(
-    lecture: Lecture,
-    onOpenInYouTube: () -> Unit,
-    onSwitchToInAppPlayer: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black),
-        contentAlignment = Alignment.Center
-    ) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(lecture.thumbnailUrl)
-                .crossfade(true)
-                .build(),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        )
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xDD05080E))
-        )
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(24.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color(0x226366F1), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = FocusIndigo,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Opened in Web Browser",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = lecture.title,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = TextSecondary
-                ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(
-                    onClick = onOpenInYouTube,
-                    colors = ButtonDefaults.buttonColors(containerColor = FocusIndigo),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Reopen in Browser", fontWeight = FontWeight.Bold)
-                }
-
-                OutlinedButton(
-                    onClick = onSwitchToInAppPlayer,
-                    shape = RoundedCornerShape(10.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                ) {
-                    Text("Try In-App Player")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlayerHeader(
+private fun StudioPlayerHeader(
     lecture: Lecture,
     onBack: () -> Unit,
     onToggleFocusMode: () -> Unit,
@@ -829,7 +626,7 @@ private fun PlayerHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Fullscreen / Focus Mode Button
+            // Fullscreen Focus Mode Button
             Card(
                 onClick = onToggleFocusMode,
                 colors = CardDefaults.cardColors(containerColor = Color(0x336366F1)),
@@ -843,13 +640,13 @@ private fun PlayerHeader(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Fullscreen,
-                        contentDescription = "Fullscreen Focus Mode",
+                        imageVector = Icons.Default.CenterFocusStrong,
+                        contentDescription = "Focus Mode",
                         tint = FocusIndigo,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Fullscreen",
+                        text = "Focus Mode",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = FocusIndigo
@@ -858,7 +655,7 @@ private fun PlayerHeader(
                 }
             }
 
-            // Bookmark Button
+            // Save / Bookmark Button
             IconButton(
                 onClick = onToggleSave,
                 modifier = Modifier.testTag("player_save_button")
@@ -874,67 +671,360 @@ private fun PlayerHeader(
 }
 
 @Composable
-private fun SpeedSelectorRow(
+private fun QuickStudyControlsBar(
     currentSpeed: Float,
-    onSpeedSelected: (Float) -> Unit
+    isLoopActive: Boolean,
+    loopStartSec: Int,
+    loopEndSec: Int,
+    onRewind10: () -> Unit,
+    onForward10: () -> Unit,
+    onSpeedSelected: (Float) -> Unit,
+    onToggleLoop: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(SlateCard)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // Rewind 10s & Forward 10s
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.padding(end = 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Speed,
-                contentDescription = null,
-                tint = TextSecondary,
-                modifier = Modifier.size(16.dp)
-            )
-            Text(
-                text = "Speed:",
-                style = MaterialTheme.typography.labelMedium.copy(color = TextSecondary)
-            )
+            IconButton(onClick = onRewind10, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Replay10,
+                    contentDescription = "Rewind 10 seconds",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            IconButton(onClick = onForward10, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Forward10,
+                    contentDescription = "Forward 10 seconds",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
-        listOf(0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
-            val isSelected = currentSpeed == speed
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSpeedSelected(speed) },
-                label = {
+        // A/B Loop Button
+        Card(
+            onClick = onToggleLoop,
+            colors = CardDefaults.cardColors(
+                containerColor = if (isLoopActive) Color(0x33F59E0B) else Color(0xFF131B2E)
+            ),
+            shape = RoundedCornerShape(8.dp),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (isLoopActive) FocusAmber else SlateBorder
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Loop,
+                    contentDescription = null,
+                    tint = if (isLoopActive) FocusAmber else TextSecondary,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = if (isLoopActive) "Looping 30s" else "A/B Loop",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = if (isLoopActive) FocusAmber else TextSecondary,
+                        fontWeight = FontWeight.Medium
+                    )
+                )
+            }
+        }
+
+        // Speed Selector Dropdown/Chips
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            listOf(1.0f, 1.25f, 1.5f, 2.0f).forEach { speed ->
+                val isSelected = currentSpeed == speed
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (isSelected) FocusIndigo else Color.Transparent)
+                        .clickable { onSpeedSelected(speed) }
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                ) {
                     Text(
                         text = "${speed}x",
                         style = MaterialTheme.typography.labelSmall.copy(
+                            color = if (isSelected) Color.White else TextMuted,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) Color.White else TextSecondary
+                            fontSize = 11.sp
                         )
                     )
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = FocusIndigo,
-                    containerColor = SlateCard
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = isSelected,
-                    borderColor = if (isSelected) FocusIndigo else SlateBorder
-                ),
-                shape = RoundedCornerShape(8.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudyStudioTabsBar(
+    selectedTab: StudyStudioTab,
+    hasChapters: Boolean,
+    onTabSelected: (StudyStudioTab) -> Unit
+) {
+    val tabs = listOf(
+        StudyStudioTab.NOTES to "Notes",
+        StudyStudioTab.CHAPTERS to if (hasChapters) "Chapters" else "Topics",
+        StudyStudioTab.TIMER to "Focus Timer",
+        StudyStudioTab.SYLLABUS to "Syllabus"
+    )
+
+    TabRow(
+        selectedTabIndex = tabs.indexOfFirst { it.first == selectedTab },
+        containerColor = Color.Transparent,
+        contentColor = FocusIndigo,
+        indicator = { tabPositions ->
+            val index = tabs.indexOfFirst { it.first == selectedTab }
+            if (index in tabPositions.indices) {
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[index]),
+                    color = FocusIndigo,
+                    height = 2.dp
+                )
+            }
+        },
+        divider = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(SlateBorder)
+            )
+        }
+    ) {
+        tabs.forEach { (tab, title) ->
+            val isSelected = selectedTab == tab
+            Tab(
+                selected = isSelected,
+                onClick = { onTabSelected(tab) },
+                text = {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) FocusIndigo else TextSecondary
+                        )
+                    )
+                }
             )
         }
     }
 }
 
 @Composable
-private fun LectureMetadataBox(
-    lecture: Lecture
+private fun ChaptersListView(
+    chapters: List<LectureChapter>,
+    currentSeconds: Int,
+    onChapterClick: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SlateCard),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MenuBook,
+                    contentDescription = null,
+                    tint = FocusIndigo,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Lecture Topics & Timestamps",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (chapters.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "No topic timestamps parsed in this lecture description.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "You can add your own custom timestamps in the Notes tab!",
+                        style = MaterialTheme.typography.labelSmall.copy(color = FocusIndigo)
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    chapters.forEach { chapter ->
+                        val isCurrent = currentSeconds >= chapter.startSeconds &&
+                                (chapters.getOrNull(chapters.indexOf(chapter) + 1)?.startSeconds ?: Int.MAX_VALUE) > currentSeconds
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isCurrent) Color(0x336366F1) else Color(0xFF131B2E))
+                                .clickable { onChapterClick(chapter.startSeconds) }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = chapter.title,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (isCurrent) Color.White else TextPrimary,
+                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(if (isCurrent) FocusIndigo else Color(0xFF1E293B))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = chapter.displayTimestamp,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = if (isCurrent) Color.White else FocusAmber,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LectureSyllabusInfoView(
+    lecture: Lecture,
+    onOpenInBrowser: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SlateCard),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = FocusIndigo,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = "Course & Lecture Details",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = lecture.title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Instructor / Channel: ${lecture.channelTitle}",
+                style = MaterialTheme.typography.bodySmall.copy(color = FocusAmber)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "Duration: ${lecture.duration}",
+                style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
+            )
+
+            if (lecture.description.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = lecture.description,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = TextSecondary,
+                        lineHeight = 17.sp
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedButton(
+                onClick = onOpenInBrowser,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = TextSecondary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Open Video in External Browser", color = TextSecondary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LectureMetadataBox(lecture: Lecture) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -973,18 +1063,6 @@ private fun LectureMetadataBox(
                 Text(
                     text = lecture.duration,
                     style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
-                )
-            }
-            if (lecture.description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = lecture.description,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        color = TextSecondary,
-                        lineHeight = 18.sp
-                    ),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

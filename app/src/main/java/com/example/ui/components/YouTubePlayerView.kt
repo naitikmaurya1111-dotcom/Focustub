@@ -18,7 +18,12 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,15 +34,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -51,6 +68,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -60,12 +78,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.ui.theme.FocusAmber
+import com.example.ui.theme.FocusEmerald
 import com.example.ui.theme.FocusIndigo
 import com.example.ui.theme.ObsidianBg
 import com.example.ui.theme.SlateBorder
 import com.example.ui.theme.SlateCard
+import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+
+class YouTubePlayerController {
+    var seekTo: ((seconds: Int) -> Unit)? = null
+    var seekRelative: ((deltaSeconds: Int) -> Unit)? = null
+    var setPlaybackSpeed: ((speed: Float) -> Unit)? = null
+    var play: (() -> Unit)? = null
+    var pause: (() -> Unit)? = null
+    var setLoopRange: ((startSec: Int, endSec: Int) -> Unit)? = null
+    var clearLoop: (() -> Unit)? = null
+}
 
 class JavaScriptBridge(
     private val onProgress: (current: Int, total: Int) -> Unit,
@@ -94,6 +124,7 @@ fun YouTubePlayerView(
     videoId: String,
     startSeconds: Int = 0,
     playbackSpeed: Float = 1.0f,
+    controller: YouTubePlayerController? = null,
     onProgressUpdate: (current: Int, total: Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -103,10 +134,59 @@ fun YouTubePlayerView(
     var playerError by remember { mutableStateOf<String?>(null) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var reloadTrigger by remember { mutableIntStateOf(0) }
+    var isPlaying by remember { mutableStateOf(false) }
 
     // HTML5 Fullscreen support via WebChromeClient custom view
     var customView by remember { mutableStateOf<View?>(null) }
     var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+
+    // Connect Controller actions to WebView JavaScript
+    LaunchedEffect(webViewRef) {
+        controller?.apply {
+            seekTo = { sec ->
+                webViewRef?.evaluateJavascript(
+                    "if (window.player && player.seekTo) { player.seekTo($sec, true); player.playVideo(); }",
+                    null
+                )
+            }
+            seekRelative = { delta ->
+                webViewRef?.evaluateJavascript(
+                    "if (window.player && typeof player.getCurrentTime === 'function') { var cur = player.getCurrentTime() || 0; player.seekTo(Math.max(0, cur + ($delta)), true); }",
+                    null
+                )
+            }
+            setPlaybackSpeed = { speed ->
+                webViewRef?.evaluateJavascript(
+                    "if (window.player && player.setPlaybackRate) { player.setPlaybackRate($speed); }",
+                    null
+                )
+            }
+            play = {
+                webViewRef?.evaluateJavascript(
+                    "if (window.player && player.playVideo) { player.playVideo(); }",
+                    null
+                )
+            }
+            pause = {
+                webViewRef?.evaluateJavascript(
+                    "if (window.player && player.pauseVideo) { player.pauseVideo(); }",
+                    null
+                )
+            }
+            setLoopRange = { start, end ->
+                webViewRef?.evaluateJavascript(
+                    "window.loopStart = $start; window.loopEnd = $end; if (window.player && player.seekTo) { player.seekTo($start, true); player.playVideo(); }",
+                    null
+                )
+            }
+            clearLoop = {
+                webViewRef?.evaluateJavascript(
+                    "window.loopStart = null; window.loopEnd = null;",
+                    null
+                )
+            }
+        }
+    }
 
     // Handle back press while in video fullscreen mode
     BackHandler(enabled = customView != null) {
@@ -116,7 +196,7 @@ fun YouTubePlayerView(
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
 
-    // Update playback speed dynamically
+    // Update playback speed dynamically when prop changes
     LaunchedEffect(playbackSpeed) {
         webViewRef?.evaluateJavascript(
             "if (window.player && player.setPlaybackRate) { player.setPlaybackRate($playbackSpeed); }",
@@ -146,7 +226,7 @@ fun YouTubePlayerView(
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
                 html, body { width: 100%; height: 100%; background-color: #000000; overflow: hidden; }
-                #player-wrapper { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+                #player-wrapper { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: #000000; }
                 #player { width: 100%; height: 100%; border: none; }
             </style>
         </head>
@@ -162,6 +242,8 @@ fun YouTubePlayerView(
 
                 var player;
                 var progressInterval;
+                window.loopStart = null;
+                window.loopEnd = null;
 
                 function onYouTubeIframeAPIReady() {
                     player = new YT.Player('player', {
@@ -177,8 +259,7 @@ fun YouTubePlayerView(
                             'iv_load_policy': 3,
                             'fs': 1,
                             'enablejsapi': 1,
-                            'origin': 'https://www.youtube.com',
-                            'widget_referrer': 'https://www.youtube.com',
+                            'origin': 'https://www.youtube-nocookie.com',
                             'start': $startSeconds
                         },
                         events: {
@@ -223,6 +304,15 @@ fun YouTubePlayerView(
                             if (player && typeof player.getCurrentTime === 'function' && typeof player.getDuration === 'function') {
                                 var curr = player.getCurrentTime() || 0;
                                 var dur = player.getDuration() || 0;
+
+                                // A/B Looping support
+                                if (window.loopStart !== null && window.loopEnd !== null && window.loopEnd > window.loopStart) {
+                                    if (curr >= window.loopEnd) {
+                                        player.seekTo(window.loopStart, true);
+                                        return;
+                                    }
+                                }
+
                                 if (window.AndroidBridge && dur > 0) {
                                     window.AndroidBridge.onTimeUpdate(curr, dur);
                                 }
@@ -245,7 +335,7 @@ fun YouTubePlayerView(
 
     Box(
         modifier = modifier
-            .background(ObsidianBg)
+            .background(Color.Black)
             .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
@@ -309,8 +399,8 @@ fun YouTubePlayerView(
                             mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                             allowFileAccess = true
                             allowContentAccess = true
-                            
-                            // Fix YouTube Error 152-4 by replacing WebView User-Agent signature with Chrome Mobile
+
+                            // High-compatibility Chrome Mobile User-Agent
                             val originalUa = userAgentString ?: ""
                             val cleanedUa = originalUa
                                 .replace("; wv", "")
@@ -320,9 +410,10 @@ fun YouTubePlayerView(
                         addJavascriptInterface(
                             JavaScriptBridge(
                                 onProgress = onProgressUpdate,
-                                onStateChanged = { /* handled */ },
+                                onStateChanged = { state ->
+                                    isPlaying = (state == 1)
+                                },
                                 onError = { code ->
-                                    // Error 101/150/152 indicates embedding restrictions by channel or origin
                                     playerError = "Playback restricted by video creator (Code $code)"
                                 }
                             ),
@@ -371,7 +462,7 @@ fun YouTubePlayerView(
                                 activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                             }
                         }
-                        loadDataWithBaseURL("https://www.youtube.com", htmlContent, "text/html", "UTF-8", null)
+                        loadDataWithBaseURL("https://www.youtube-nocookie.com", htmlContent, "text/html", "UTF-8", null)
                         webViewRef = this
                     }
                 },
@@ -384,16 +475,18 @@ fun YouTubePlayerView(
 
         if (isLoading && customView == null) {
             CircularProgressIndicator(
-                color = FocusIndigo
+                color = FocusIndigo,
+                modifier = Modifier.size(36.dp),
+                strokeWidth = 3.dp
             )
         }
 
-        // Dedicated Fallback UI if creator restricted embedding or YouTube blocked iframe
-        playerError?.let { err ->
+        // Fallback UI if video creator strictly disallowed embeds outside youtube.com
+        playerError?.let {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xEE080C14))
+                    .background(Color(0xF5080C14))
                     .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -401,18 +494,25 @@ fun YouTubePlayerView(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.ErrorOutline,
-                        contentDescription = null,
-                        tint = FocusAmber,
-                        modifier = Modifier.size(42.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .background(Color(0x22F59E0B), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ErrorOutline,
+                            contentDescription = null,
+                            tint = FocusAmber,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "Embedding Restricted by Video Owner",
-                        style = MaterialTheme.typography.titleSmall.copy(
+                        text = "Embedding Restricted by Creator",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             color = TextPrimary,
                             fontWeight = FontWeight.Bold
                         ),
@@ -422,10 +522,11 @@ fun YouTubePlayerView(
                     Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
-                        text = "The creator of this video does not allow playback in embedded players outside YouTube. You can still open it directly while keeping your study session active.",
+                        text = "This specific lecture requires direct playback. You can open it smoothly while your notes and study timer remain completely active.",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = TextSecondary,
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp
                         ),
                         textAlign = TextAlign.Center
                     )
@@ -470,12 +571,11 @@ fun YouTubePlayerView(
                                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
                                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
                                         })
-                                    } catch (e2: Exception) { }
+                                    } catch (_: Exception) { }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = FocusIndigo),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.testTag("open_in_browser_button")
+                            shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.OpenInNew,
@@ -499,15 +599,14 @@ fun YouTubePlayerView(
                                 isLoading = true
                                 reloadTrigger++
                                 webViewRef?.loadDataWithBaseURL(
-                                    "https://www.youtube.com",
+                                    "https://www.youtube-nocookie.com",
                                     htmlContent,
                                     "text/html",
                                     "UTF-8",
-                                    "https://www.youtube.com"
+                                    null
                                 )
                             },
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.testTag("retry_player_button")
+                            shape = RoundedCornerShape(10.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Refresh,
@@ -516,10 +615,7 @@ fun YouTubePlayerView(
                                 tint = TextSecondary
                             )
                             Spacer(modifier = Modifier.size(4.dp))
-                            Text(
-                                text = "Retry",
-                                style = MaterialTheme.typography.labelMedium.copy(color = TextSecondary)
-                            )
+                            Text("Retry", style = MaterialTheme.typography.labelMedium.copy(color = TextSecondary))
                         }
                     }
                 }

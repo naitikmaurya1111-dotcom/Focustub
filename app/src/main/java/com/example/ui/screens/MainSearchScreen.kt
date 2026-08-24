@@ -39,6 +39,7 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.School
@@ -111,7 +112,8 @@ fun MainSearchScreen(
         context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
     }
     val clipboardText = clipboardManager?.primaryClip?.getItemAt(0)?.text?.toString() ?: ""
-    val hasValidPasteLink = (clipboardText.contains("youtu.be") || clipboardText.contains("youtube.com") || (clipboardText.length == 11 && clipboardText.matches(Regex("^[a-zA-Z0-9_-]{11}$"))))
+    val hasValidPasteLink = (clipboardText.contains("youtu.be") || clipboardText.contains("youtube.com") ||
+            (clipboardText.length == 11 && clipboardText.matches(Regex("^[a-zA-Z0-9_-]{11}$"))))
 
     val studyPromptSuggestions = listOf(
         "CS50 Harvard" to "cs",
@@ -132,11 +134,11 @@ fun MainSearchScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 840.dp),
+                .widthIn(max = 860.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header: "What do you want to study?" + API Mode Badge
+            // Header: Academic Badge + Title
             item {
                 Column(
                     modifier = Modifier
@@ -155,10 +157,10 @@ fun MainSearchScreen(
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
-                                    .background(FocusAmber, RoundedCornerShape(4.dp))
+                                    .background(FocusAmber, CircleShape)
                             )
                             Text(
-                                text = "FOCUSTUBE",
+                                text = "FOCUSTUBE ACADEMIC",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 2.sp,
@@ -167,11 +169,11 @@ fun MainSearchScreen(
                             )
                         }
 
-                        // Status Badge with clickable interaction
+                        // API Mode Indicator Pill
                         val (pillBg, pillTextColor, pillText, pillIcon) = when {
-                            isLiveApiSearch -> Quad(Color(0x2210B981), FocusEmerald, "Live YouTube API v3", Icons.Default.CloudDone)
-                            apiKeyStatus.source != ApiKeySource.NONE -> Quad(Color(0x226366F1), FocusIndigo, "YouTube API Configured", Icons.Default.CloudDone)
-                            else -> Quad(Color(0x2238BDF8), Color(0xFF38BDF8), "Curated Academic Mode", Icons.Default.AutoAwesome)
+                            isLiveApiSearch -> Quad(Color(0x2210B981), FocusEmerald, "YouTube API Live", Icons.Default.CloudDone)
+                            apiKeyStatus.source != ApiKeySource.NONE -> Quad(Color(0x226366F1), FocusIndigo, "API Ready", Icons.Default.CloudDone)
+                            else -> Quad(Color(0x2238BDF8), Color(0xFF38BDF8), "Curated Syllabus", Icons.Default.AutoAwesome)
                         }
 
                         Row(
@@ -200,10 +202,10 @@ fun MainSearchScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "What do you want to study?",
+                        text = "Focused Video Study Studio",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -214,15 +216,13 @@ fun MainSearchScreen(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "Find academic lectures without social feeds, comments, or rabbit holes.",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            color = TextSecondary
-                        )
+                        text = "Pure educational lectures without recommendations, shorts, or algorithmic distractions.",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                     )
                 }
             }
 
-            // Search Input Box & Actions
+            // Search Bar & Actions
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     OutlinedTextField(
@@ -230,7 +230,7 @@ fun MainSearchScreen(
                         onValueChange = onSearchQueryChanged,
                         placeholder = {
                             Text(
-                                text = "Search courses, topics, professors, or paste YouTube link...",
+                                text = "Search university lectures, topics, or paste YouTube link...",
                                 style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted)
                             )
                         },
@@ -325,7 +325,7 @@ fun MainSearchScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "Paste link: ${clipboardText.take(32)}...",
+                                    text = "Paste: ${clipboardText.take(32)}...",
                                     style = MaterialTheme.typography.bodySmall.copy(color = TextPrimary),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -348,7 +348,7 @@ fun MainSearchScreen(
                         }
                     }
 
-                    // Notice if API returned error (with friendly fallback explanation)
+                    // Notice if API returned error
                     AnimatedVisibility(
                         visible = searchApiErrorMessage != null,
                         enter = fadeIn(),
@@ -378,7 +378,10 @@ fun MainSearchScreen(
                                     )
                                     Text(
                                         text = "YouTube API: Curated academic fallback active.",
-                                        style = MaterialTheme.typography.bodySmall.copy(color = TextPrimary, fontSize = 12.sp)
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            color = TextPrimary,
+                                            fontSize = 12.sp
+                                        )
                                     )
                                 }
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -416,7 +419,7 @@ fun MainSearchScreen(
                 item {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "Featured Academic Lectures",
+                            text = "Featured University Lectures",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 color = TextMuted,
                                 fontWeight = FontWeight.SemiBold
@@ -454,7 +457,7 @@ fun MainSearchScreen(
                 }
             }
 
-            // Category Filter Chips Row
+            // Subject Category Filter Chips Row
             item {
                 Row(
                     modifier = Modifier
@@ -491,7 +494,7 @@ fun MainSearchScreen(
                 }
             }
 
-            // Quick Continue Studying Section (If any recent lectures exist)
+            // Continue Studying Section (If any recent lectures exist)
             if (recentLectures.isNotEmpty() && searchQuery.isBlank() && selectedCategory == "all") {
                 item {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -525,6 +528,7 @@ fun MainSearchScreen(
                                     onClick = { onLectureSelected(lecture) },
                                     colors = CardDefaults.cardColors(containerColor = SlateCard),
                                     shape = RoundedCornerShape(12.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder),
                                     modifier = Modifier
                                         .width(220.dp)
                                         .testTag("recent_lecture_${lecture.videoId}")
@@ -576,7 +580,7 @@ fun MainSearchScreen(
                 }
             }
 
-            // Search Results Heading
+            // Results Heading
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -593,7 +597,7 @@ fun MainSearchScreen(
 
                     if (isLiveApiSearch) {
                         Text(
-                            text = "Live Results",
+                            text = "Live Search Active",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 color = FocusEmerald,
                                 fontWeight = FontWeight.SemiBold
@@ -620,7 +624,7 @@ fun MainSearchScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "No study videos found for \"$searchQuery\"",
+                            text = "No lectures found for \"$searchQuery\"",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 color = TextPrimary,
                                 fontWeight = FontWeight.SemiBold
@@ -628,10 +632,8 @@ fun MainSearchScreen(
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Try searching a different topic, professor, or paste a direct YouTube URL.",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = TextMuted
-                            )
+                            text = "Try searching a different subject, professor, or paste a YouTube URL.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
                         )
                     }
                 }

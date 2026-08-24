@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,10 +61,11 @@ fun LectureCard(
         modifier = modifier
             .fillMaxWidth()
             .testTag("lecture_card_${lecture.videoId}")
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
-        shape = RoundedCornerShape(14.dp)
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -86,18 +87,41 @@ fun LectureCard(
                     modifier = Modifier.matchParentSize()
                 )
 
+                // Category pill
+                if (lecture.category.isNotBlank() && lecture.category != "all") {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xDD090D16))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = lecture.category.uppercase(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                                letterSpacing = 1.sp,
+                                color = FocusAmber
+                            )
+                        )
+                    }
+                }
+
                 // Duration badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
-                        .background(Color(0xCC090D16), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xEE090D16))
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = lecture.duration,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
                             color = TextPrimary
                         )
@@ -108,9 +132,10 @@ fun LectureCard(
                 if (lecture.isCompleted) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopStart)
+                            .align(Alignment.TopEnd)
                             .padding(8.dp)
-                            .background(Color(0xEE10B981), RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xEE10B981))
                             .padding(horizontal = 6.dp, vertical = 3.dp)
                     ) {
                         Row(
@@ -164,7 +189,7 @@ fun LectureCard(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = TextPrimary,
-                            lineHeight = 20.sp
+                            lineHeight = 21.sp
                         ),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -195,7 +220,7 @@ fun LectureCard(
                     Text(
                         text = lecture.channelTitle,
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = TextSecondary,
+                            color = FocusAmber,
                             fontWeight = FontWeight.Medium
                         ),
                         maxLines = 1,
@@ -205,14 +230,16 @@ fun LectureCard(
                     if (lecture.notes.isNotBlank()) {
                         Box(
                             modifier = Modifier
-                                .background(Color(0x336366F1), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(Color(0x336366F1))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = "Has Notes",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     color = FocusIndigo,
-                                    fontSize = 10.sp
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
                             )
                         }

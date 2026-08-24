@@ -1,7 +1,9 @@
 package com.example.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -26,7 +29,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -59,13 +62,21 @@ fun StudyTimerWidget(
     onReset: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val totalSeconds = timerState.initialMinutes * 60
+    val progress = if (totalSeconds > 0) {
+        ((totalSeconds - timerState.secondsRemaining).toFloat() / totalSeconds.toFloat()).coerceIn(0f, 1f)
+    } else 0f
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .testTag("study_timer_card"),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (timerState.isRunning) FocusAmber else SlateBorder
+        )
     ) {
         Column(
             modifier = Modifier
@@ -73,6 +84,7 @@ fun StudyTimerWidget(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Header Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -82,27 +94,46 @@ fun StudyTimerWidget(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Timer,
-                        contentDescription = null,
-                        tint = FocusAmber,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                if (timerState.isRunning) Color(0x33F59E0B) else Color(0x336366F1),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = if (timerState.isRunning) FocusAmber else FocusIndigo,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     Text(
-                        text = "Study Focus Timer",
+                        text = "Pomodoro & Focus Timer",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                     )
                 }
 
                 if (timerState.isFinished) {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .background(Color(0x3310B981), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x3310B981))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = FocusEmerald,
+                            modifier = Modifier.size(12.dp)
+                        )
                         Text(
                             text = "Session Complete!",
                             style = MaterialTheme.typography.labelSmall.copy(
@@ -111,18 +142,38 @@ fun StudyTimerWidget(
                             )
                         )
                     }
+                } else if (timerState.isRunning) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x33F59E0B))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "ACTIVE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = FocusAmber,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Duration Presets (Only visible when not running)
+            // Duration Presets (When timer is paused or idle)
             if (!timerState.isRunning) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(bottom = 12.dp)
                 ) {
-                    listOf(15 to "15m", 25 to "25m (Pomodoro)", 50 to "50m (Deep)").forEach { (mins, label) ->
+                    listOf(
+                        15 to "15m Sprint",
+                        25 to "25m Pomodoro",
+                        50 to "50m Deep Work"
+                    ).forEach { (mins, label) ->
                         val selected = timerState.initialMinutes == mins
                         FilterChip(
                             selected = selected,
@@ -138,7 +189,7 @@ fun StudyTimerWidget(
                             },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = FocusIndigo,
-                                containerColor = Color.Transparent
+                                containerColor = Color(0xFF131B2E)
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
@@ -151,11 +202,11 @@ fun StudyTimerWidget(
                 }
             }
 
-            // Big Digital Countdown
+            // Big Digital Countdown Display
             Text(
                 text = timerState.formattedTime,
                 style = MaterialTheme.typography.headlineLarge.copy(
-                    fontSize = 44.sp,
+                    fontSize = 42.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
                     letterSpacing = 2.sp,
@@ -164,11 +215,23 @@ fun StudyTimerWidget(
                 modifier = Modifier.testTag("timer_countdown_text")
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // Progress Bar
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp)),
+                color = if (timerState.isRunning) FocusAmber else FocusIndigo,
+                trackColor = Color(0xFF131B2E)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Timer Controls
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (timerState.isRunning) {
@@ -185,12 +248,15 @@ fun StudyTimerWidget(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Pause", color = TextPrimary)
+                        Text("Pause", color = TextPrimary, fontWeight = FontWeight.Bold)
                     }
                 } else {
                     Button(
                         onClick = onResume,
-                        colors = ButtonDefaults.buttonColors(containerColor = FocusIndigo),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FocusIndigo,
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.testTag("timer_start_button")
                     ) {
@@ -201,7 +267,7 @@ fun StudyTimerWidget(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Start Session", color = Color.White)
+                        Text("Start Focus Session", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
 

@@ -3,6 +3,7 @@ package com.example
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.local.UserPreferencesRepository
+import com.example.data.remote.ChapterParser
 import com.example.data.remote.DurationParser
 import com.example.data.repository.ApiKeyProvider
 import com.example.data.repository.ApiKeySource
@@ -49,6 +50,21 @@ class ExampleRobolectricTest {
     }
 
     @Test
+    fun `chapter parser parses timestamps accurately`() {
+        val desc = """
+            00:00 Introduction
+            03:15 Matrix Multiplication
+            1:15:30 Final Exam Review
+        """.trimIndent()
+        val chapters = ChapterParser.parseChapters(desc)
+        assertEquals(3, chapters.size)
+        assertEquals(0, chapters[0].startSeconds)
+        assertEquals(195, chapters[1].startSeconds)
+        assertEquals("Matrix Multiplication", chapters[1].title)
+        assertEquals(4530, chapters[2].startSeconds)
+    }
+
+    @Test
     fun `custom api key can be stored and retrieved`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefsRepo = UserPreferencesRepository(context)
@@ -67,17 +83,17 @@ class ExampleRobolectricTest {
     }
 
     @Test
-    fun `open in youtube default preference is true by default and mutable`() {
+    fun `open in youtube default preference is false by default and mutable`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val prefsRepo = UserPreferencesRepository(context)
         prefsRepo.clearAllPreferences()
 
-        assertTrue(prefsRepo.getOpenInYouTubeDefault())
-
-        prefsRepo.setOpenInYouTubeDefault(false)
         assertEquals(false, prefsRepo.getOpenInYouTubeDefault())
 
         prefsRepo.setOpenInYouTubeDefault(true)
         assertTrue(prefsRepo.getOpenInYouTubeDefault())
+
+        prefsRepo.setOpenInYouTubeDefault(false)
+        assertEquals(false, prefsRepo.getOpenInYouTubeDefault())
     }
 }

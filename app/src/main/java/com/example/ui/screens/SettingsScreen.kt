@@ -114,13 +114,13 @@ fun SettingsScreen(
             onDismissRequest = { showConfirmDialog = false },
             title = {
                 Text(
-                    text = "Reset Library & Data?",
+                    text = "Reset Study Library & History?",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = TextPrimary)
                 )
             },
             text = {
                 Text(
-                    text = "This will remove all saved lectures, study progress, API key credentials, and scratchpad notes from this device.",
+                    text = "This will remove all saved lectures, learning progress, custom API keys, and notes from this device.",
                     style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                 )
             },
@@ -133,7 +133,7 @@ fun SettingsScreen(
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
                 ) {
-                    Text("Clear All")
+                    Text("Clear All Data", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -154,7 +154,7 @@ fun SettingsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 840.dp),
+                .widthIn(max = 860.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -162,7 +162,7 @@ fun SettingsScreen(
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Settings",
+                        text = "Settings & Preferences",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -171,13 +171,65 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Configure live YouTube API v3 connection, player display, and focus preferences.",
+                        text = "Configure live YouTube API v3 connection, study timer presets, and learning analytics.",
                         style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                     )
                 }
             }
 
-            // YouTube API v3 Key Configuration Box (Requested)
+            // Study Stats Card
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = SlateCard),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(18.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "$totalMinutesStudied",
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = FocusAmber
+                                )
+                            )
+                            Text(
+                                text = "Minutes Studied",
+                                style = MaterialTheme.typography.labelSmall.copy(color = TextSecondary)
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(width = 1.dp, height = 36.dp)
+                                .background(SlateBorder)
+                        )
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "$savedCount",
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = FocusIndigo
+                                )
+                            )
+                            Text(
+                                text = "Saved Lectures",
+                                style = MaterialTheme.typography.labelSmall.copy(color = TextSecondary)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // YouTube API v3 Key Configuration Box
             item {
                 Card(
                     modifier = Modifier
@@ -185,7 +237,10 @@ fun SettingsScreen(
                         .testTag("youtube_api_key_card"),
                     colors = CardDefaults.cardColors(containerColor = SlateCard),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, if (apiKeyStatus.source != ApiKeySource.NONE) Color(0x336366F1) else SlateBorder)
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (apiKeyStatus.source != ApiKeySource.NONE) Color(0x336366F1) else SlateBorder
+                    )
                 ) {
                     Column(
                         modifier = Modifier
@@ -220,7 +275,7 @@ fun SettingsScreen(
                             // Active Status Indicator Pill
                             val (badgeBg, badgeColor, badgeText) = when (apiKeyStatus.source) {
                                 ApiKeySource.IN_APP_SETTINGS -> Triple(Color(0x2210B981), FocusEmerald, "Custom Key Active")
-                                ApiKeySource.ENVIRONMENT_CONFIG -> Triple(Color(0x226366F1), FocusIndigo, "Secrets Panel Active")
+                                ApiKeySource.ENVIRONMENT_CONFIG -> Triple(Color(0x226366F1), FocusIndigo, "Configured Key Active")
                                 ApiKeySource.NONE -> Triple(Color(0x22F59E0B), FocusAmber, "Curated Mode (No Key)")
                             }
 
@@ -244,7 +299,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Add your own Google Cloud YouTube Data API v3 key to unlock infinite real-time search across all educational lectures and channels.",
+                            text = "Add your own Google Cloud YouTube Data API v3 key to search across all educational channels in real-time.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 lineHeight = 18.sp
@@ -259,7 +314,7 @@ fun SettingsScreen(
                             onValueChange = { inputKey = it },
                             placeholder = {
                                 Text(
-                                    text = if (apiKeyStatus.source == ApiKeySource.ENVIRONMENT_CONFIG) "Configured via Secrets Panel" else "Paste AIzaSy... YouTube API Key",
+                                    text = if (apiKeyStatus.source == ApiKeySource.ENVIRONMENT_CONFIG) "Configured via Build Environment" else "Paste AIzaSy... YouTube API Key",
                                     style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted)
                                 )
                             },
@@ -314,9 +369,9 @@ fun SettingsScreen(
                                 .testTag("youtube_api_key_input")
                         )
 
-                        // Action Buttons: Save, Test, Clear
                         Spacer(modifier = Modifier.height(12.dp))
 
+                        // Actions: Save, Test, Clear
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -389,7 +444,7 @@ fun SettingsScreen(
                             }
                         }
 
-                        // Validation / Feedback banner
+                        // Validation Feedback Banner
                         if (apiKeyValidationResult != null) {
                             Spacer(modifier = Modifier.height(10.dp))
                             val isSuccess = apiKeyValidationResult.startsWith("Success")
@@ -434,147 +489,6 @@ fun SettingsScreen(
                                 }
                             }
                         }
-
-                        // Helpful Key Instructions
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF0F172A))
-                                .padding(10.dp)
-                        ) {
-                            Column {
-                                Text(
-                                    text = "💡 How to get a free YouTube API key:",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = FocusAmber,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "1. Visit console.cloud.google.com → Create a project.\n2. Enable 'YouTube Data API v3' in API Library.\n3. Create Credentials → API Key and paste it above, or add YOUTUBE_API_KEY in the Secrets panel.",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = TextMuted,
-                                        fontSize = 11.sp,
-                                        lineHeight = 16.sp
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Study Stats Card
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = SlateCard),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(18.dp),
-                        horizontalArrangement = Arrangement.SpaceAround,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "$totalMinutesStudied",
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = FocusAmber
-                                )
-                            )
-                            Text(
-                                text = "Minutes Studied",
-                                style = MaterialTheme.typography.labelSmall.copy(color = TextSecondary)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .size(width = 1.dp, height = 36.dp)
-                                .background(SlateBorder)
-                        )
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "$savedCount",
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = FocusIndigo
-                                )
-                            )
-                            Text(
-                                text = "Saved Lectures",
-                                style = MaterialTheme.typography.labelSmall.copy(color = TextSecondary)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Default Playback Mode Setting (Auto-Launch in Web Browser vs In-App Webview)
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("default_playback_mode_card"),
-                    colors = CardDefaults.cardColors(containerColor = SlateCard),
-                    shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        if (openInYouTubeDefault) Color(0x446366F1) else SlateBorder
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.OndemandVideo,
-                                    contentDescription = null,
-                                    tint = FocusIndigo,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Text(
-                                    text = "Open in Web Browser by Default",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TextPrimary
-                                    )
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Directly launches videos in your distraction-free Web Browser (Chrome/Firefox) instead of the YouTube app, avoiding recommended shorts while keeping study timers & notes active.",
-                                style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary, lineHeight = 17.sp)
-                            )
-                        }
-
-                        Switch(
-                            checked = openInYouTubeDefault,
-                            onCheckedChange = { onToggleOpenInYouTubeDefault() },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = FocusIndigo,
-                                uncheckedThumbColor = TextMuted,
-                                uncheckedTrackColor = Color(0xFF131B2E)
-                            ),
-                            modifier = Modifier.testTag("open_in_browser_default_switch")
-                        )
                     }
                 }
             }
@@ -584,7 +498,8 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = SlateCard),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -614,7 +529,7 @@ fun SettingsScreen(
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Prevents display from sleeping during active lecture playback.",
+                                text = "Prevents display from sleeping during active lecture study sessions.",
                                 style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
                             )
                         }
@@ -639,7 +554,8 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = SlateCard),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
                 ) {
                     Column(
                         modifier = Modifier
@@ -657,7 +573,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = "Default Study Timer",
+                                text = "Default Study Timer Length",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = TextPrimary
@@ -666,7 +582,7 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Preset length when starting a focused study session.",
+                            text = "Choose your preferred study session length.",
                             style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
                         )
 
@@ -675,7 +591,7 @@ fun SettingsScreen(
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            listOf(15 to "15m", 25 to "25m (Pomodoro)", 50 to "50m (Deep)").forEach { (mins, label) ->
+                            listOf(15 to "15m Sprint", 25 to "25m Pomodoro", 50 to "50m Deep Work").forEach { (mins, label) ->
                                 val isSelected = defaultTimerMinutes == mins
                                 FilterChip(
                                     selected = isSelected,
@@ -706,7 +622,8 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = SlateCard),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SlateBorder)
                 ) {
                     Row(
                         modifier = Modifier
@@ -717,7 +634,7 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Library & Cache Management",
+                                text = "Data & Library Management",
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     color = TextPrimary
@@ -725,7 +642,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Clear all saved lectures, progress, and preferences stored on device.",
+                                text = "Clear saved lectures, study progress, and notes stored on device.",
                                 style = MaterialTheme.typography.bodySmall.copy(color = TextSecondary)
                             )
                         }
@@ -773,7 +690,7 @@ fun SettingsScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "FocusTube Philosophy",
+                                text = "FocusTube Study Mission",
                                 style = MaterialTheme.typography.titleSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = TextPrimary
@@ -782,7 +699,7 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "“The user opens FocusTube, watches the lecture they came for, studies, and leaves.”\n\nNo algorithmic rabbit holes, no comment sections, no endless feeds. Just pure learning.",
+                            text = "“The user opens FocusTube, watches the lecture they came for, takes structured notes, and studies in peace.”\n\nNo algorithmic rabbit holes, no recommendations, no infinite feeds. Pure academic focus.",
                             style = MaterialTheme.typography.bodySmall.copy(
                                 color = TextSecondary,
                                 lineHeight = 18.sp

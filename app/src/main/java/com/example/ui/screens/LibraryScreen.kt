@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -83,7 +84,7 @@ fun LibraryScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .widthIn(max = 840.dp),
+                .widthIn(max = 860.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -91,7 +92,7 @@ fun LibraryScreen(
             item {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Study Library",
+                        text = "Study Syllabus & Library",
                         style = MaterialTheme.typography.headlineLarge.copy(
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
@@ -100,7 +101,7 @@ fun LibraryScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Your curated syllabus of saved lectures and active study progress.",
+                        text = "Your curated syllabus of saved lectures, active notes, and learning progress.",
                         style = MaterialTheme.typography.bodyMedium.copy(color = TextSecondary)
                     )
                 }
@@ -140,7 +141,7 @@ fun LibraryScreen(
                                     selected = isSelected,
                                     borderColor = if (isSelected) FocusIndigo else SlateBorder
                                 ),
-                                shape = RoundedCornerShape(8.dp)
+                                shape = RoundedCornerShape(10.dp)
                             )
                         }
                     }
@@ -173,7 +174,7 @@ fun LibraryScreen(
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = if (savedLectures.isEmpty())
-                                "Search for lectures and bookmark them to build your personal study queue."
+                                "Search for lectures and bookmark them to construct your personalized academic syllabus."
                             else
                                 "Switch filters to view all your saved educational videos.",
                             style = MaterialTheme.typography.bodySmall.copy(color = TextMuted),
@@ -184,7 +185,10 @@ fun LibraryScreen(
                             Spacer(modifier = Modifier.height(20.dp))
                             Button(
                                 onClick = onNavigateToSearch,
-                                colors = ButtonDefaults.buttonColors(containerColor = FocusIndigo),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = FocusIndigo,
+                                    contentColor = Color.White
+                                ),
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.testTag("explore_lectures_button")
                             ) {
@@ -194,7 +198,7 @@ fun LibraryScreen(
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Find Lectures")
+                                Text("Find Lectures", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
