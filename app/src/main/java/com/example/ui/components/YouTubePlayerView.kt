@@ -1,8 +1,10 @@
 package com.example.ui.components
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
 import android.net.Uri
 import android.view.View
@@ -15,6 +17,7 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,10 +98,23 @@ fun YouTubePlayerView(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val activity = context as? Activity
     var isLoading by remember { mutableStateOf(true) }
     var playerError by remember { mutableStateOf<String?>(null) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var reloadTrigger by remember { mutableIntStateOf(0) }
+
+    // HTML5 Fullscreen support via WebChromeClient custom view
+    var customView by remember { mutableStateOf<View?>(null) }
+    var customViewCallback by remember { mutableStateOf<WebChromeClient.CustomViewCallback?>(null) }
+
+    // Handle back press while in video fullscreen mode
+    BackHandler(enabled = customView != null) {
+        customViewCallback?.onCustomViewHidden()
+        customView = null
+        customViewCallback = null
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
 
     // Update playback speed dynamically
     LaunchedEffect(playbackSpeed) {
@@ -110,6 +126,9 @@ fun YouTubePlayerView(
 
     DisposableEffect(videoId) {
         onDispose {
+            customViewCallback?.onCustomViewHidden()
+            customView = null
+            customViewCallback = null
             webViewRef?.let { wv ->
                 wv.stopLoading()
                 wv.loadUrl("about:blank")
@@ -227,77 +246,143 @@ fun YouTubePlayerView(
     Box(
         modifier = modifier
             .background(ObsidianBg)
-            .fillMaxWidth(),
+            .fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        AndroidView(
-            factory = { ctx ->
-                WebView(ctx).apply {
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                    setBackgroundColor(0xFF000000.toInt())
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
-                        mediaPlaybackRequiresUserGesture = false
-                        loadWithOverviewMode = true
-                        useWideViewPort = true
-                        cacheMode = WebSettings.LOAD_DEFAULT
-                        mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        allowFileAccess = true
-                        allowContentAccess = true
-                        
-                        // Fix YouTube Error 152-4 by replacing WebView User-Agent signature with Chrome Mobile
-                        val originalUa = userAgentString ?: ""
-                        val cleanedUa = originalUa
-                            .replace("; wv", "")
-                            .replace("Version/4.0 ", "")
-                        userAgentString = if (cleanedUa.isNotBlank()) cleanedUa else "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+        if (customView != null) {
+            AndroidView(
+                factory = { ctx ->
+                    FrameLayout(ctx).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        setBackgroundColor(0xFF000000.toInt())
+                        val cv = customView
+                        if (cv?.parent != null) {
+                            (cv.parent as? ViewGroup)?.removeView(cv)
+                        }
+                        if (cv != null) {
+                            addView(
+                                cv,
+                                FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                            )
+                        }
                     }
-                    addJavascriptInterface(
-                        JavaScriptBridge(
-                            onProgress = onProgressUpdate,
-                            onStateChanged = { /* handled */ },
-                            onError = { code ->
-                                // Error 101/150/152 indicates embedding restrictions by channel or origin
-                                playerError = "Playback restricted by video creator (Code $code)"
+                },
+                update = { container ->
+                    val cv = customView
+                    if (cv != null && cv.parent != container) {
+                        (cv.parent as? ViewGroup)?.removeView(cv)
+                        container.removeAllViews()
+                        container.addView(
+                            cv,
+                            FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        setBackgroundColor(0xFF000000.toInt())
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
+                            databaseEnabled = true
+                            mediaPlaybackRequiresUserGesture = false
+                            loadWithOverviewMode = true
+                            useWideViewPort = true
+                            cacheMode = WebSettings.LOAD_DEFAULT
+                            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                            allowFileAccess = true
+                            allowContentAccess = true
+                            
+                            // Fix YouTube Error 152-4 by replacing WebView User-Agent signature with Chrome Mobile
+                            val originalUa = userAgentString ?: ""
+                            val cleanedUa = originalUa
+                                .replace("; wv", "")
+                                .replace("Version/4.0 ", "")
+                            userAgentString = if (cleanedUa.isNotBlank()) cleanedUa else "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+                        }
+                        addJavascriptInterface(
+                            JavaScriptBridge(
+                                onProgress = onProgressUpdate,
+                                onStateChanged = { /* handled */ },
+                                onError = { code ->
+                                    // Error 101/150/152 indicates embedding restrictions by channel or origin
+                                    playerError = "Playback restricted by video creator (Code $code)"
+                                }
+                            ),
+                            "AndroidBridge"
+                        )
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                                isLoading = true
+                                playerError = null
                             }
-                        ),
-                        "AndroidBridge"
-                    )
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
-                            isLoading = true
-                            playerError = null
-                        }
 
-                        override fun onPageFinished(view: WebView?, url: String?) {
-                            isLoading = false
-                        }
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                isLoading = false
+                            }
 
-                        override fun onReceivedError(
-                            view: WebView?,
-                            request: WebResourceRequest?,
-                            error: WebResourceError?
-                        ) {
-                            isLoading = false
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                error: WebResourceError?
+                            ) {
+                                isLoading = false
+                            }
+
+                            override fun shouldOverrideUrlLoading(
+                                view: WebView?,
+                                request: WebResourceRequest?
+                            ): Boolean {
+                                val url = request?.url?.toString().orEmpty()
+                                if (url.startsWith("intent://") || url.startsWith("vnd.youtube:")) {
+                                    return true // Block jumping out to native external YouTube app
+                                }
+                                return false
+                            }
                         }
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                                customView = view
+                                customViewCallback = callback
+                                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                            }
+
+                            override fun onHideCustomView() {
+                                customView = null
+                                customViewCallback?.onCustomViewHidden()
+                                customViewCallback = null
+                                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                            }
+                        }
+                        loadDataWithBaseURL("https://www.youtube.com", htmlContent, "text/html", "UTF-8", null)
+                        webViewRef = this
                     }
-                    webChromeClient = WebChromeClient()
-                    loadDataWithBaseURL("https://www.youtube.com", htmlContent, "text/html", "UTF-8", null)
-                    webViewRef = this
-                }
-            },
-            update = { wv ->
-                webViewRef = wv
-            },
-            modifier = Modifier.fillMaxSize()
-        )
+                },
+                update = { wv ->
+                    webViewRef = wv
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
-        if (isLoading) {
+        if (isLoading && customView == null) {
             CircularProgressIndicator(
                 color = FocusIndigo
             )

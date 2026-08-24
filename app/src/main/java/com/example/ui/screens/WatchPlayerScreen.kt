@@ -829,7 +829,7 @@ private fun PlayerHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Focus Mode Button
+            // Fullscreen / Focus Mode Button
             Card(
                 onClick = onToggleFocusMode,
                 colors = CardDefaults.cardColors(containerColor = Color(0x336366F1)),
@@ -843,13 +843,13 @@ private fun PlayerHeader(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CenterFocusStrong,
-                        contentDescription = "Focus Mode",
+                        imageVector = Icons.Default.Fullscreen,
+                        contentDescription = "Fullscreen Focus Mode",
                         tint = FocusIndigo,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = "Focus Mode",
+                        text = "Fullscreen",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontWeight = FontWeight.Bold,
                             color = FocusIndigo
