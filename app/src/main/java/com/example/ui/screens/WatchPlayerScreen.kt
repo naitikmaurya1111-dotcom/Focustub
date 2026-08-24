@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Replay10
@@ -179,7 +180,7 @@ fun WatchPlayerScreen(
         }
     }
 
-    // FULLSCREEN FOCUS MODE (Immersive HUD)
+    // FULLSCREEN FOCUS MODE (Immersive Theater HUD)
     if (isFocusMode) {
         Box(
             modifier = modifier
@@ -358,7 +359,7 @@ fun WatchPlayerScreen(
             Row(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Left pane: Video & Study Player Controls
+                // Left pane: Video & Core controls
                 Column(
                     modifier = Modifier
                         .weight(1.15f)
@@ -382,7 +383,7 @@ fun WatchPlayerScreen(
                             .aspectRatio(16f / 9f)
                             .clip(RoundedCornerShape(16.dp))
                             .background(Color.Black)
-                            .border(1.dp, SlateBorder, RoundedCornerShape(16.dp))
+                            .border(1.dp, Color(0x336366F1), RoundedCornerShape(16.dp))
                     ) {
                         YouTubePlayerView(
                             videoId = lecture.videoId,
@@ -400,12 +401,12 @@ fun WatchPlayerScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Quick Study Controls Toolbar
+                    // Quick Study Controls Bar
                     QuickStudyControlsBar(
                         currentSpeed = playbackSpeed,
                         isLoopActive = isLoopActive,
-                        loopStartSec = loopStartSec,
-                        loopEndSec = loopEndSec,
+                        currentSec = currentPlaybackSec,
+                        totalSec = totalDurationSec,
                         onRewind10 = { playerController.seekRelative?.invoke(-10) },
                         onForward10 = { playerController.seekRelative?.invoke(10) },
                         onSpeedSelected = onSpeedChanged,
@@ -419,6 +420,13 @@ fun WatchPlayerScreen(
                                 loopEndSec = currentPlaybackSec + 20
                                 playerController.setLoopRange?.invoke(loopStartSec, loopEndSec)
                             }
+                        },
+                        onAddTimestampNote = {
+                            val timeStr = ChapterParser.formatSecondsToDisplay(currentPlaybackSec)
+                            val stamp = "[$timeStr] "
+                            val newNotes = if (notes.isBlank()) stamp else "$notes\n$stamp"
+                            onNotesChanged(newNotes)
+                            selectedTab = StudyStudioTab.NOTES
                         }
                     )
 
@@ -504,14 +512,14 @@ fun WatchPlayerScreen(
                     onToggleSave = onToggleSave
                 )
 
-                // Video Player Container
+                // Video Player Frame
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 9f)
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.Black)
-                        .border(1.dp, SlateBorder, RoundedCornerShape(16.dp))
+                        .border(1.dp, Color(0x336366F1), RoundedCornerShape(16.dp))
                 ) {
                     YouTubePlayerView(
                         videoId = lecture.videoId,
@@ -527,12 +535,12 @@ fun WatchPlayerScreen(
                     )
                 }
 
-                // Quick Study Controls Toolbar (Rewind 10, Forward 10, Speed, Loop)
+                // Quick Study Controls Toolbar (Rewind, Forward, Speed, Loop, Timestamp Note)
                 QuickStudyControlsBar(
                     currentSpeed = playbackSpeed,
                     isLoopActive = isLoopActive,
-                    loopStartSec = loopStartSec,
-                    loopEndSec = loopEndSec,
+                    currentSec = currentPlaybackSec,
+                    totalSec = totalDurationSec,
                     onRewind10 = { playerController.seekRelative?.invoke(-10) },
                     onForward10 = { playerController.seekRelative?.invoke(10) },
                     onSpeedSelected = onSpeedChanged,
@@ -546,10 +554,17 @@ fun WatchPlayerScreen(
                             loopEndSec = currentPlaybackSec + 20
                             playerController.setLoopRange?.invoke(loopStartSec, loopEndSec)
                         }
+                    },
+                    onAddTimestampNote = {
+                        val timeStr = ChapterParser.formatSecondsToDisplay(currentPlaybackSec)
+                        val stamp = "[$timeStr] "
+                        val newNotes = if (notes.isBlank()) stamp else "$notes\n$stamp"
+                        onNotesChanged(newNotes)
+                        selectedTab = StudyStudioTab.NOTES
                     }
                 )
 
-                // Segmented Study Tabs
+                // Segmented Study Studio Tabs
                 StudyStudioTabsBar(
                     selectedTab = selectedTab,
                     hasChapters = chapters.isNotEmpty(),
@@ -674,13 +689,16 @@ private fun StudioPlayerHeader(
 private fun QuickStudyControlsBar(
     currentSpeed: Float,
     isLoopActive: Boolean,
-    loopStartSec: Int,
-    loopEndSec: Int,
+    currentSec: Int,
+    totalSec: Int,
     onRewind10: () -> Unit,
     onForward10: () -> Unit,
     onSpeedSelected: (Float) -> Unit,
-    onToggleLoop: () -> Unit
+    onToggleLoop: () -> Unit,
+    onAddTimestampNote: () -> Unit
 ) {
+    val timeLabel = ChapterParser.formatSecondsToDisplay(currentSec)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -713,16 +731,44 @@ private fun QuickStudyControlsBar(
             }
         }
 
+        // Quick Timestamp Note Button
+        Card(
+            onClick = onAddTimestampNote,
+            colors = CardDefaults.cardColors(containerColor = Color(0x22F59E0B)),
+            shape = RoundedCornerShape(8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, FocusAmber)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EditNote,
+                    contentDescription = null,
+                    tint = FocusAmber,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "+ $timeLabel",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        color = FocusAmber,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
+        }
+
         // A/B Loop Button
         Card(
             onClick = onToggleLoop,
             colors = CardDefaults.cardColors(
-                containerColor = if (isLoopActive) Color(0x33F59E0B) else Color(0xFF131B2E)
+                containerColor = if (isLoopActive) Color(0x336366F1) else Color(0xFF131B2E)
             ),
             shape = RoundedCornerShape(8.dp),
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
-                if (isLoopActive) FocusAmber else SlateBorder
+                if (isLoopActive) FocusIndigo else SlateBorder
             )
         ) {
             Row(
@@ -733,20 +779,20 @@ private fun QuickStudyControlsBar(
                 Icon(
                     imageVector = Icons.Default.Loop,
                     contentDescription = null,
-                    tint = if (isLoopActive) FocusAmber else TextSecondary,
+                    tint = if (isLoopActive) FocusIndigo else TextSecondary,
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = if (isLoopActive) "Looping 30s" else "A/B Loop",
+                    text = if (isLoopActive) "Loop Active" else "A/B Loop",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        color = if (isLoopActive) FocusAmber else TextSecondary,
+                        color = if (isLoopActive) FocusIndigo else TextSecondary,
                         fontWeight = FontWeight.Medium
                     )
                 )
             }
         }
 
-        // Speed Selector Dropdown/Chips
+        // Speed Selector Pills
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -872,7 +918,7 @@ private fun ChaptersListView(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "No topic timestamps parsed in this lecture description.",
+                        text = "No topic timestamps in this lecture description.",
                         style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
