@@ -12,6 +12,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,8 +36,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CenterFocusStrong
-import androidx.compose.material.icons.filled.CenterFocusWeak
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
@@ -44,20 +43,13 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Loop
 import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlayCircleFilled
 import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -67,9 +59,9 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -78,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -104,6 +97,7 @@ import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.ui.viewmodel.StudyTimerState
+import kotlinx.coroutines.delay
 
 enum class StudyStudioTab {
     NOTES,
@@ -143,7 +137,15 @@ fun WatchPlayerScreen(
     var currentPlaybackSec by remember { mutableIntStateOf(lecture.progressSeconds) }
     var totalDurationSec by remember { mutableIntStateOf(lecture.totalSeconds) }
     var selectedTab by remember { mutableStateOf(StudyStudioTab.NOTES) }
-    var showControlsInFocusMode by remember { mutableStateOf(true) }
+    var showControlsInFocusMode by remember { mutableStateOf(false) }
+
+    // Auto-hide controls in Fullscreen after 2.5 seconds
+    LaunchedEffect(showControlsInFocusMode) {
+        if (showControlsInFocusMode) {
+            delay(2500)
+            showControlsInFocusMode = false
+        }
+    }
 
     // A/B Looper State
     var isLoopActive by remember { mutableStateOf(false) }
@@ -180,13 +182,16 @@ fun WatchPlayerScreen(
         }
     }
 
-    // FULLSCREEN FOCUS MODE (Immersive Theater HUD)
+    // FULLSCREEN FOCUS MODE (Crystal Clean Fullscreen - Zero Dimming, Zero Permanent Buttons)
     if (isFocusMode) {
         Box(
             modifier = modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clickable { showControlsInFocusMode = !showControlsInFocusMode }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { showControlsInFocusMode = !showControlsInFocusMode }
                 .testTag("focus_mode_container")
         ) {
             YouTubePlayerView(
@@ -202,7 +207,7 @@ fun WatchPlayerScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Minimalist HUD Overlay in Focus Mode
+            // Top Control Bar Overlay (Only appears on tap and auto-fades out in 2.5s)
             AnimatedVisibility(
                 visible = showControlsInFocusMode,
                 enter = fadeIn(),
@@ -212,8 +217,17 @@ fun WatchPlayerScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0x88000000))
-                        .padding(16.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color(0x99000000),
+                                    Color.Transparent,
+                                    Color.Transparent,
+                                    Color(0x99000000)
+                                )
+                            )
+                        )
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     // Top Bar
                     Row(
@@ -225,120 +239,84 @@ fun WatchPlayerScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
                         ) {
                             IconButton(
                                 onClick = onToggleFocusMode,
                                 modifier = Modifier
-                                    .background(Color(0xDD1E293B), CircleShape)
+                                    .background(Color(0x881E293B), CircleShape)
                                     .testTag("exit_focus_mode_button")
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.CenterFocusWeak,
-                                    contentDescription = "Exit Focus Mode",
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Exit Fullscreen",
                                     tint = Color.White
                                 )
                             }
 
                             Text(
-                                text = "FOCUS STUDY MODE",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = FocusAmber,
-                                    letterSpacing = 1.5.sp
-                                )
+                                text = lecture.title,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        // Compact timer badge in focus mode
-                        if (timerState.isRunning) {
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xDD090D16), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 12.dp, vertical = 6.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Compact timer badge in focus mode if active
+                            if (timerState.isRunning) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0x88090D16), RoundedCornerShape(8.dp))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Timer,
-                                        contentDescription = null,
-                                        tint = FocusAmber,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = timerState.formattedTime,
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            color = Color.White,
-                                            fontWeight = FontWeight.Bold
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Timer,
+                                            contentDescription = null,
+                                            tint = FocusAmber,
+                                            modifier = Modifier.size(12.dp)
                                         )
-                                    )
+                                        Text(
+                                            text = timerState.formattedTime,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        )
+                                    }
                                 }
                             }
-                        }
 
-                        // Orientation toggle
-                        IconButton(
-                            onClick = {
-                                activity?.requestedOrientation = if (isLandscape) {
-                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                } else {
-                                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                }
-                            },
-                            modifier = Modifier.background(Color(0xDD1E293B), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                contentDescription = "Toggle Fullscreen Orientation",
-                                tint = Color.White
-                            )
-                        }
-                    }
-
-                    // Quick 10s Rewind & Forward Controls in Focus HUD
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .background(Color(0x99090D16), RoundedCornerShape(24.dp))
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { playerController.seekRelative?.invoke(-10) }) {
-                            Icon(
-                                imageVector = Icons.Default.Replay10,
-                                contentDescription = "Rewind 10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
-
-                        IconButton(onClick = { playerController.seekRelative?.invoke(10) }) {
-                            Icon(
-                                imageVector = Icons.Default.Forward10,
-                                contentDescription = "Forward 10s",
-                                tint = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            // Orientation toggle
+                            IconButton(
+                                onClick = {
+                                    activity?.requestedOrientation = if (isLandscape) {
+                                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                    } else {
+                                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                    }
+                                },
+                                modifier = Modifier.background(Color(0x881E293B), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    contentDescription = "Toggle Orientation",
+                                    tint = Color.White
+                                )
+                            }
                         }
                     }
-
-                    // Bottom Floating Title
-                    Text(
-                        text = lecture.title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .background(Color(0xCC090D16), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
                 }
             }
         }
