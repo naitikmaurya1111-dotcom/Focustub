@@ -16,30 +16,30 @@
                 android:endY="108"
                 android:type="linear">
                 <item android:offset="0.0" android:color="#FFFFFF" />
-                <item android:offset="0.6" android:color="#F8FAFC" />
-                <item android:offset="1.0" android:color="#EEF2F6" />
+                <item android:offset="0.7" android:color="#F8FAFC" />
+                <item android:offset="1.0" android:color="#F1F5F9" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Soft Radiant Ambient Halo -->
-    <path android:pathData="M54,18 A36,36 0 1,0 54,90 A36,36 0 1,0 54,18">
+    <!-- Soft Google Blue Ambient Glow -->
+    <path android:pathData="M54,16 A38,38 0 1,0 54,92 A38,38 0 1,0 54,16">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:centerX="54"
                 android:centerY="54"
-                android:gradientRadius="36"
+                android:gradientRadius="38"
                 android:type="radial">
-                <item android:offset="0.0" android:color="#256366F1" />
-                <item android:offset="0.5" android:color="#1238BDF8" />
+                <item android:offset="0.0" android:color="#204285F4" />
+                <item android:offset="0.6" android:color="#0D1A73E8" />
                 <item android:offset="1.0" android:color="#00FFFFFF" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Subtle Luxury Outer Contour Rim -->
+    <!-- Subtle Luxury Outer Squircle Rim -->
     <path
-        android:strokeColor="#E2E8F0"
+        android:strokeColor="#E8EAED"
         android:strokeWidth="1.0"
         android:pathData="M54,12 A42,42 0 1,0 54,96 A42,42 0 1,0 54,12" />
 </vector>

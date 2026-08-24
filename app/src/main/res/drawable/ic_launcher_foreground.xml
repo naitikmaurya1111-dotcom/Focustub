@@ -6,99 +6,117 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 1. Deep Base Shadow / Under-Book Layer (Soft organic curve) -->
-    <path android:pathData="M54,80 C38,80 20,69 20,49 C20,43 27,39 33,41 C42,44 49,53 54,57 C59,53 66,44 75,41 C81,39 88,43 88,49 C88,69 70,80 54,80 Z">
+    <!-- 1. Soft Drop Shadow Elevation -->
+    <path
+        android:fillColor="#1F000000"
+        android:pathData="M33,25 H75 C80.5,25 85,29.5 85,35 V79 C85,84.5 80.5,89 75,89 H33 C27.5,89 23,84.5 23,79 V35 C23,29.5 27.5,25 33,25 Z" />
+
+    <!-- 2. Back Book Cover Base (Deep Google Blue) -->
+    <path android:pathData="M32,22 H74 C79.5,22 84,26.5 84,32 V76 C84,81.5 79.5,86 74,86 H32 C26.5,86 22,81.5 22,76 V32 C22,26.5 26.5,22 32,22 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="20"
-                android:startY="40"
-                android:endX="88"
-                android:endY="80"
+                android:startX="22"
+                android:startY="22"
+                android:endX="84"
+                android:endY="86"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#20312E81" />
-                <item android:offset="1.0" android:color="#2006B6D4" />
+                <item android:offset="0.0" android:color="#174EA6" />
+                <item android:offset="1.0" android:color="#1A73E8" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- 2. Main Vibrant Open Knowledge Book Wings (Ultra-smooth rounded curves, zero sharp corners) -->
-    <path android:pathData="M54,75 C42,75 24,66 24,47 C24,40 31,36 37,38 C45,41 50,49 54,53 C58,49 63,41 71,38 C77,36 84,40 84,47 C84,66 66,75 54,75 Z">
+    <!-- 3. Spine Accent Ridge (Left Edge) -->
+    <path
+        android:fillColor="#133E78"
+        android:pathData="M22,32 C22,26.5 26.5,22 32,22 H34 V86 H32 C26.5,86 22,81.5 22,76 Z" />
+
+    <!-- 4. Front Google Docs-Inspired Book Sheet (Vibrant Google Blue with Fold Cutout) -->
+    <path android:pathData="M32,22 H66 L82,38 V76 C82,80.4 78.4,84 74,84 H32 C27.6,84 24,80.4 24,76 V30 C24,25.6 27.6,22 32,22 Z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:startX="24"
-                android:startY="36"
-                android:endX="84"
-                android:endY="75"
+                android:startY="22"
+                android:endX="82"
+                android:endY="84"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#4F46E5" />
-                <item android:offset="0.35" android:color="#7C3AED" />
-                <item android:offset="0.7" android:color="#2563EB" />
-                <item android:offset="1.0" android:color="#06B6D4" />
+                <item android:offset="0.0" android:color="#4285F4" />
+                <item android:offset="0.5" android:color="#1A73E8" />
+                <item android:offset="1.0" android:color="#185ABC" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- 3. Left Page Inner Depth Crease -->
+    <!-- 5. Under-Fold Corner Shadow -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeAlpha="0.25"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:pathData="M32,45 C38,47 46,55 52,66" />
+        android:fillColor="#1557B0"
+        android:pathData="M66,22 L82,38 H66 Z" />
 
-    <!-- 4. Right Page Inner Depth Crease -->
-    <path
-        android:strokeColor="#FFFFFF"
-        android:strokeAlpha="0.25"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:pathData="M76,45 C70,47 62,55 56,66" />
-
-    <!-- 5. Academic Focus Halo (Smooth Rounded Orbital Arc) -->
-    <path
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:pathData="M38,28 C45,23 63,23 70,28">
-        <aapt:attr name="android:strokeColor">
-            <gradient
-                android:startX="38"
-                android:startY="23"
-                android:endX="70"
-                android:endY="28"
-                android:type="linear">
-                <item android:offset="0.0" android:color="#F59E0B" />
-                <item android:offset="1.0" android:color="#FBBF24" />
-            </gradient>
-        </aapt:attr>
-    </path>
-
-    <!-- 6. Illumination / Focus Spark Indicator -->
-    <path android:pathData="M54,17 A3.5,3.5 0 1,0 54,24 A3.5,3.5 0 1,0 54,17">
+    <!-- 6. Google Docs Iconic Folded Corner Flap -->
+    <path android:pathData="M66,22 L82,38 H70 C67.8,38 66,36.2 66,34 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:centerX="54"
-                android:centerY="20.5"
-                android:gradientRadius="3.5"
-                android:type="radial">
-                <item android:offset="0.0" android:color="#FDE68A" />
-                <item android:offset="1.0" android:color="#F59E0B" />
+                android:startX="66"
+                android:startY="22"
+                android:endX="82"
+                android:endY="38"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#AECBFA" />
+                <item android:offset="0.7" android:color="#8AB4F8" />
+                <item android:offset="1.0" android:color="#669DF6" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- 7. Center Rounded Study Video Play Prism (Soft Corners, Smooth Curves) -->
-    <!-- Drop Shadow behind Play Prism -->
-    <path
-        android:fillColor="#25000000"
-        android:pathData="M46,43.5 C46,40.8 49,39.2 51.3,40.6 L67.2,49.8 C69.5,51.1 69.5,54.4 67.2,55.7 L51.3,64.9 C49,66.3 46,64.7 46,62 Z" />
+    <!-- 7. Vibrant Study Bookmark Ribbon (Google Gold Accent) -->
+    <path android:pathData="M33,20 H41 V34 L37,31 L33,34 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="33"
+                android:startY="20"
+                android:endX="41"
+                android:endY="34"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#FBBC04" />
+                <item android:offset="1.0" android:color="#F29900" />
+            </gradient>
+        </aapt:attr>
+    </path>
 
-    <!-- Pure Crisp White Rounded Play Prism -->
+    <!-- 8. Study Notes Document Lines (Crisp Rounded White Bars) -->
+    <!-- Top Title Line -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M38,39 H58" />
+
+    <!-- Subtitle / Topic Line -->
+    <path
+        android:strokeColor="#E8F0FE"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M38,47 H48" />
+
+    <!-- Bottom Summary Line -->
+    <path
+        android:strokeColor="#D2E3FC"
+        android:strokeAlpha="0.75"
+        android:strokeWidth="3.0"
+        android:strokeLineCap="round"
+        android:pathData="M38,73 H70" />
+
+    <!-- 9. Study Video Play Lens Container (Pure White Circle with Soft Glow) -->
+    <path
+        android:fillColor="#20000000"
+        android:pathData="M57,48 A11.5,11.5 0 1,0 57,71 A11.5,11.5 0 1,0 57,48" />
+
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M46,42 C46,39.3 49,37.7 51.3,39.1 L67.2,48.3 C69.5,49.6 69.5,52.9 67.2,54.2 L51.3,63.4 C49,64.8 46,63.2 46,60.5 Z" />
+        android:pathData="M57,46 A11.5,11.5 0 1,0 57,69 A11.5,11.5 0 1,0 57,46" />
 
-    <!-- Inner Soft-Light Core of Play Prism -->
+    <!-- 10. Center Rounded Video Play Icon (Google Royal Blue) -->
     <path
-        android:fillColor="#EEF2FF"
-        android:pathData="M49,44.5 L63,51.5 L49,58.5 Z" />
+        android:fillColor="#1A73E8"
+        android:pathData="M54,51.5 C54,50.6 55,50.0 55.8,50.5 L62.8,55.0 C63.6,55.5 63.6,56.5 62.8,57.0 L55.8,61.5 C55.0,62.0 54,61.4 54,60.5 Z" />
 </vector>
