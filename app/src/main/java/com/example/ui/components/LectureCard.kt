@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.outlined.BookmarkBorder
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -71,15 +70,10 @@ fun LectureCard(
     val interactionSource = remember { MutableInteractionSource() }
 
     Card(
+        onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .testTag("lecture_card_${lecture.videoId}")
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(
-                interactionSource = interactionSource,
-                indication = rememberRipple(bounded = true, color = FocusIndigo),
-                onClick = onClick
-            ),
+            .testTag("lecture_card_${lecture.videoId}"),
         colors = CardDefaults.cardColors(containerColor = SlateCard),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, FocusIndigo.copy(alpha = 0.2f))

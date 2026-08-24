@@ -432,7 +432,7 @@ fun SettingsScreen(
                             }
                         }
 
-                        Column(modifier = Modifier.padding(horizontal = 24.dp, bottom = 24.dp)) {
+                        Column(modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 24.dp)) {
                             Text(
                                 text = "Add your own Google Cloud YouTube Data API v3 key to unlock unrestricted real-time search across all educational channels.",
                                 style = MaterialTheme.typography.bodyMedium.copy(
