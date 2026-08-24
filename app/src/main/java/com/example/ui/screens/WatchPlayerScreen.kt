@@ -1159,7 +1159,7 @@ private fun QuickStudyControlsBar(
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "${playbackSpeed}x",
+                    text = "${currentSpeed}x",
                     style = MaterialTheme.typography.labelSmall.copy(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
