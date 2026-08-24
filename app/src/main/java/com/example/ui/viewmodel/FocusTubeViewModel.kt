@@ -1,10 +1,12 @@
 package com.example.ui.viewmodel
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.local.FocusTubeDatabase
 import com.example.data.local.UserPreferencesRepository
 import com.example.data.model.Lecture
 import com.example.data.remote.ChapterParser
@@ -51,10 +53,21 @@ data class StudyTimerState(
 }
 
 class FocusTubeViewModel(
+    application: Application,
     private val repository: LectureRepository,
     private val userPreferencesRepository: UserPreferencesRepository,
     private val apiKeyProvider: ApiKeyProvider
-) : ViewModel() {
+) : AndroidViewModel(application) {
+
+    constructor(application: Application) : this(
+        application = application,
+        userPreferencesRepository = UserPreferencesRepository(application),
+        apiKeyProvider = ApiKeyProvider(UserPreferencesRepository(application)),
+        repository = LectureRepository(
+            FocusTubeDatabase.getInstance(application).lectureDao(),
+            FocusTubeDatabase.getInstance(application).studySessionDao()
+        )
+    )
 
     // Screen Navigation
     private val _currentScreen = MutableStateFlow(FocusScreen.SEARCH)
