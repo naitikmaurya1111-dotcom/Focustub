@@ -1,46 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Focus Corner Brackets -->
-    <!-- Top-Left -->
-    <path
-        android:strokeColor="#6366F1"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M32,40 L32,32 L40,32" />
-    <!-- Top-Right -->
-    <path
-        android:strokeColor="#6366F1"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M68,32 L76,32 L76,40" />
-    <!-- Bottom-Left -->
-    <path
-        android:strokeColor="#6366F1"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M32,68 L32,76 L40,76" />
-    <!-- Bottom-Right -->
-    <path
-        android:strokeColor="#6366F1"
-        android:strokeWidth="3.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M68,76 L76,76 L76,68" />
 
-    <!-- Center Play/Study Symbol with warm accent -->
+    <!-- Gemini Radiant Multi-Point Primary Star -->
+    <path android:pathData="M54,18 C54,39 69,54 90,54 C69,54 54,69 54,90 C54,69 39,54 18,54 C39,54 54,39 54,18 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="18"
+                android:startY="18"
+                android:endX="90"
+                android:endY="90"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#4F46E5" />
+                <item android:offset="0.35" android:color="#7C3AED" />
+                <item android:offset="0.7" android:color="#2563EB" />
+                <item android:offset="1.0" android:color="#06B6D4" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Celestial Top-Right Sparkle -->
+    <path android:pathData="M78,16 C78,23 83,26 88,26 C83,26 78,29 78,36 C78,29 73,26 68,26 C73,26 78,23 78,16 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="68"
+                android:startY="16"
+                android:endX="88"
+                android:endY="36"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#38BDF8" />
+                <item android:offset="1.0" android:color="#818CF8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Mini Ambient Sparkle Left -->
+    <path android:pathData="M28,68 C28,72 31,74 34,74 C31,74 28,76 28,80 C28,76 25,74 22,74 C25,74 28,72 28,68 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="22"
+                android:startY="68"
+                android:endX="34"
+                android:endY="80"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#818CF8" />
+                <item android:offset="1.0" android:color="#F43F5E" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Center Pristine White Play/Focus Prism -->
     <path
-        android:fillColor="#F8FAFC"
-        android:pathData="M48,43.5 L65,54 L48,64.5 Z" />
-    
-    <!-- Minimalist Study Dot Indicator -->
+        android:fillColor="#FFFFFF"
+        android:pathData="M48.5,43.5 C48.5,42.2 49.9,41.4 51.1,42.1 L64.8,50.6 C65.9,51.3 65.9,52.9 64.8,53.6 L51.1,62.1 C49.9,62.8 48.5,62.0 48.5,60.7 Z" />
+
+    <!-- Center Lens Core Accent -->
     <path
-        android:fillColor="#F59E0B"
-        android:pathData="M54,34 A3,3 0 1,0 54,40 A3,3 0 1,0 54,34" />
+        android:fillColor="#E0E7FF"
+        android:pathData="M51.5,46.5 L60.5,52 L51.5,57.5 Z" />
 </vector>

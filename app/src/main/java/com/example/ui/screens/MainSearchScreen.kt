@@ -181,15 +181,25 @@ fun MainSearchScreen(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(10.dp)
-                                    .background(FocusAmber, CircleShape)
-                            )
+                                    .size(24.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(Color.White)
+                                    .padding(3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.AutoAwesome,
+                                    contentDescription = "FocusTube Gemini Brand",
+                                    tint = FocusIndigo,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                             Text(
-                                text = "FOCUSTUBE ACADEMIC",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
+                                text = "FOCUSTUBE",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
                                     letterSpacing = 2.sp,
-                                    color = FocusAmber
+                                    color = Color.White
                                 )
                             )
                         }
@@ -510,25 +520,21 @@ fun MainSearchScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(140.dp)
-                                .drawBehind {
-                                    drawCircle(
-                                        brush = Brush.radialGradient(
-                                            colors = listOf(
-                                                FocusIndigo.copy(alpha = 0.3f),
-                                                Color.Transparent
-                                            ),
-                                            radius = size.width / 1.5f
-                                        )
+                                .size(110.dp)
+                                .clip(RoundedCornerShape(32.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9))
                                     )
-                                },
+                                )
+                                .border(BorderStroke(1.5.dp, Color(0x33FFFFFF)), RoundedCornerShape(32.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.SelfImprovement,
-                                contentDescription = null,
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "FocusTube Gemini Spark",
                                 tint = FocusIndigo,
-                                modifier = Modifier.size(56.dp)
+                                modifier = Modifier.size(52.dp)
                             )
                         }
 
