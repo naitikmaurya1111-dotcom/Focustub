@@ -206,6 +206,10 @@ class FocusTubeViewModel(application: Application) : AndroidViewModel(applicatio
         _currentScreen.value = FocusScreen.PLAYER
     }
 
+    fun selectLecture(lecture: Lecture) = selectLectureToWatch(lecture)
+    fun searchLectures(query: String) = onSearchSubmitted(query)
+    fun retryLastSearch() = retrySearch()
+
     fun toggleSaveLecture(lecture: Lecture) {
         viewModelScope.launch {
             if (lecture.isSaved) {
