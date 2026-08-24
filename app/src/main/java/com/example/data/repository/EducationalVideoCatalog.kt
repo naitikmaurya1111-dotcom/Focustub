@@ -1,9 +1,13 @@
 package com.example.data.repository
 
 import com.example.data.model.Lecture
+import com.example.data.model.StudyCategory
 import java.util.regex.Pattern
 
 object EducationalVideoCatalog {
+
+    val CATEGORIES: List<StudyCategory> = StudyCategory.ALL_CATEGORIES
+    val ALL_CATEGORIES: List<StudyCategory> = StudyCategory.ALL_CATEGORIES
 
     val CURATED_LECTURES: List<Lecture> = listOf(
         // Computer Science & AI

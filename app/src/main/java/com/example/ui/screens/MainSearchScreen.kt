@@ -89,6 +89,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Lecture
+import com.example.data.model.StudyCategory
 import com.example.data.repository.ApiKeySource
 import com.example.data.repository.ApiKeyStatus
 import com.example.data.repository.EducationalVideoCatalog
